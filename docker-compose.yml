@@ -10,15 +10,24 @@ services:
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
       - SESSION_SECRET=${SESSION_SECRET:-default-secret-change-in-production}
-      - NODE_ENV=development
+      - NODE_ENV=${NODE_ENV:-development}
+      - BASE_URL=${BASE_URL:-http://localhost:3000}
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     volumes:
       - ./uploads:/app/uploads
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/api/auth/user', (res) => { process.exit(res.statusCode === 401 ? 0 : 1) })"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
   db:
     image: postgres:15-alpine
-    restart: always
+    restart: unless-stopped
     environment:
       - POSTGRES_DB=securelearn_db
       - POSTGRES_USER=securelearn
@@ -27,6 +36,11 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U securelearn -d securelearn_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 volumes:
   postgres_data:

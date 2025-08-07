@@ -66,7 +66,7 @@ export interface IStorage {
   // Assessment result operations
   getUserAssessmentResults(userId: string): Promise<AssessmentResult[]>;
   createAssessmentResult(result: InsertAssessmentResult): Promise<AssessmentResult>;
-  getAllAssessmentResults(): Promise<(AssessmentResult & { user: User })[]>;
+  getAllAssessmentResults(): Promise<(AssessmentResult & { user: User; moduleId?: number; sectionId?: number })[]>;
   deleteAssessmentResult(id: number): Promise<void>;
   deleteUserAssessmentResults(userId: string): Promise<void>;
 }
@@ -338,12 +338,13 @@ export class DatabaseStorage implements IStorage {
     await db.delete(assessmentResults).where(eq(assessmentResults.userId, userId));
   }
 
-  async getAllAssessmentResults(): Promise<(AssessmentResult & { user: User; moduleId?: number })[]> {
+  async getAllAssessmentResults(): Promise<(AssessmentResult & { user: User; moduleId?: number; sectionId?: number })[]> {
     const results = await db
       .select({
         id: assessmentResults.id,
         userId: assessmentResults.userId,
         moduleId: assessmentResults.moduleId,
+        sectionId: assessmentResults.sectionId,
         score: assessmentResults.score,
         totalQuestions: assessmentResults.totalQuestions,
         correctAnswers: assessmentResults.correctAnswers,
@@ -357,7 +358,10 @@ export class DatabaseStorage implements IStorage {
       .leftJoin(users, eq(assessmentResults.userId, users.id))
       .orderBy(desc(assessmentResults.dateTaken));
     
-    return results.filter(r => r.user) as (AssessmentResult & { user: User; moduleId?: number })[];
+    return results.filter(r => r.user).map(r => ({
+      ...r,
+      sectionId: r.sectionId || undefined
+    })) as (AssessmentResult & { user: User; moduleId?: number; sectionId?: number })[];
   }
 }
 

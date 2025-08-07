@@ -61,18 +61,17 @@ export async function setupAuth(app: Express) {
         profileImageUrl: profile.photos?.[0]?.value || '',
       };
 
-      // TODO: Uncomment when database is connected
-      // await storage.upsertUser(googleUser);
+      // Store user in database
+      const storedUser = await storage.upsertUser(googleUser);
       
-      console.log('Google OAuth Success:', googleUser);
-      
-      // Create user session object
+      // Create user session object with stored user data
       const user = {
-        id: googleUser.id,
-        email: googleUser.email,
-        firstName: googleUser.firstName,
-        lastName: googleUser.lastName,
-        profileImageUrl: googleUser.profileImageUrl,
+        id: storedUser.id,
+        email: storedUser.email,
+        firstName: storedUser.firstName,
+        lastName: storedUser.lastName,
+        profileImageUrl: storedUser.profileImageUrl,
+        role: storedUser.role,
         accessToken,
         refreshToken,
       };
@@ -80,7 +79,7 @@ export async function setupAuth(app: Express) {
       done(null, user);
     } catch (error) {
       console.error('Google OAuth error:', error);
-      done(error, null);
+      done(error as Error, undefined);
     }
   }));
 
@@ -94,40 +93,11 @@ export async function setupAuth(app: Express) {
       const user = await storage.getUser(id);
       done(null, user);
     } catch (error) {
-      done(error, null);
+      done(error as Error, undefined);
     }
   });
 
   // Authentication routes
-  
-  // Simple mock login for development
-  app.get('/api/auth/mock-login', async (req, res) => {
-    console.log('Mock login accessed');
-    const testUser = {
-      id: 'test-user-123',
-      email: 'test@example.com',
-      firstName: 'Test',
-      lastName: 'User',
-      profileImageUrl: '',
-    };
-    
-    try {
-      await storage.upsertUser(testUser);
-      req.login(testUser, (err) => {
-        if (err) {
-          console.error('Mock login error:', err);
-          return res.status(500).json({ error: 'Login failed' });
-        }
-        console.log('Mock user logged in successfully');
-        res.redirect('/');
-      });
-    } catch (error) {
-      console.error('Mock login database error:', error);
-      res.status(500).json({ error: 'Database error', details: error.message });
-    }
-  });
-
-  // Regular Google OAuth (will have redirect_uri_mismatch with dummy credentials)
   app.get('/api/auth/google', 
     passport.authenticate('google', { 
       scope: ['profile', 'email'] 
@@ -158,15 +128,7 @@ export async function setupAuth(app: Express) {
     });
   });
 
-  // Test endpoint to check environment and auth
-  app.get('/api/test-auth', (req, res) => {
-    res.json({
-      isDummyAuth: process.env.GOOGLE_CLIENT_ID === 'dummy-client-id',
-      clientId: process.env.GOOGLE_CLIENT_ID,
-      nodeEnv: process.env.NODE_ENV,
-      baseUrl: process.env.BASE_URL
-    });
-  });
+
 }
 
 export const isAuthenticated: RequestHandler = (req, res, next) => {

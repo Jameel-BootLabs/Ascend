@@ -1,33 +1,51 @@
-FROM node:alpine AS runner
+# Multi-stage build for production
+FROM node:18-alpine AS builder
 
-RUN apk add --no-cache libc6-compat
 WORKDIR /app
-COPY . /app
-EXPOSE 3000
 
-# Build arguments for environment variables
-ARG ARG_DATABASE_URL="postgresql://username:password@localhost:5432/securelearn_db"
-ARG ARG_GOOGLE_CLIENT_ID="your-google-client-id.apps.googleusercontent.com"
-ARG ARG_GOOGLE_CLIENT_SECRET="your-google-client-secret"
-ARG ARG_SESSION_SECRET="your-secure-session-secret-key"
-ARG ARG_NODE_ENV="production"
+# Copy package files
+COPY package*.json ./
+COPY tsconfig.json ./
+COPY drizzle.config.ts ./
 
-# Set environment variables from build args
-ENV DATABASE_URL=$ARG_DATABASE_URL
-ENV GOOGLE_CLIENT_ID=$ARG_GOOGLE_CLIENT_ID
-ENV GOOGLE_CLIENT_SECRET=$ARG_GOOGLE_CLIENT_SECRET
-ENV SESSION_SECRET=$ARG_SESSION_SECRET
-ENV NODE_ENV=$ARG_NODE_ENV
+# Install dependencies
+RUN npm ci --only=production
 
-# Display versions for debugging
-RUN node -v
-RUN npm -v
+# Copy source code
+COPY . .
 
-# Clean install and build
-RUN rm -rf node_modules package-lock.json
-RUN rm -rf dist
-RUN npm install --legacy-peer-deps
+# Build the application
 RUN npm run build
 
-# Start the application
-CMD ["npm", "run", "start"]
+# Production stage
+FROM node:18-alpine AS runner
+
+WORKDIR /app
+
+# Create non-root user
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 nextjs
+
+# Copy built application
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/package*.json ./
+COPY --from=builder /app/node_modules ./node_modules
+
+# Copy uploads directory if it exists
+COPY --from=builder /app/uploads ./uploads
+
+# Set ownership
+RUN chown -R nextjs:nodejs /app
+
+USER nextjs
+
+EXPOSE 3000
+
+ENV NODE_ENV=production
+ENV PORT=3000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:3000/api/auth/user', (res) => { process.exit(res.statusCode === 401 ? 0 : 1) })"
+
+CMD ["node", "dist/index.js"]

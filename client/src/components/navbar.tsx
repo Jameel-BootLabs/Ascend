@@ -1,6 +1,4 @@
-import { useAuth } from "@/hooks/useAuth";
-import { Link, useLocation } from "wouter";
-import { Shield, User, Settings, LogOut } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -9,7 +7,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useAuth } from "@/hooks/useAuth";
+import { ChevronsUp, LogOut, Settings, User } from "lucide-react";
+import { Link, useLocation } from "wouter";
 
 export default function Navbar() {
   const { user, isAuthenticated } = useAuth();
@@ -30,8 +30,8 @@ export default function Navbar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           <Link href="/" className="flex items-center">
-            <Shield className="text-primary text-2xl mr-3" />
-            <span className="text-xl font-semibold text-on-surface">SecureLearn</span>
+            <ChevronsUp className="text-primary mr-2" size={25}/>
+            <span className="text-xl font-semibold text-on-surface">Ascend</span>
           </Link>
           
           <div className="flex items-center space-x-4">
