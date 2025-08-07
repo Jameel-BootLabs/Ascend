@@ -1,14 +1,18 @@
 # SecureLearn Portal
 
-An information security training portal built with React, Express.js, and PostgreSQL.
+An information security training portal built with React, Express.js, and PostgreSQL. This application has been migrated from Replit to a standard deployment-ready service compatible with any cloud platform.
 
 ## Features
 
 - **Google OAuth Authentication** - Secure login with Google accounts
-- **Training Modules** - Interactive security training content
-- **Assessment System** - Quizzes and certifications
-- **Admin Dashboard** - Content management and user progress tracking
+- **Training Modules** - Interactive security training content with section-based organization
+- **Assessment System** - Section-based quizzes with 100% passing requirement and certificate generation
+- **Admin Dashboard** - Comprehensive content management and user progress tracking
+- **Assessment Questions Management** - Create, edit, and manage assessment questions through admin interface
 - **File Uploads** - Support for training materials (images, videos, presentations)
+- **Certificate Generation** - Professional HTML certificates for completed assessments
+- **Section-Based Architecture** - Organized training content with hierarchical sections
+- **Progress Tracking** - Real-time user progress monitoring across modules and sections
 
 ## Tech Stack
 
@@ -24,6 +28,7 @@ An information security training portal built with React, Express.js, and Postgr
 - Passport.js for authentication
 - Drizzle ORM with PostgreSQL
 - Multer for file uploads
+- Standard PostgreSQL (no Neon dependencies)
 
 ## Getting Started
 
@@ -48,6 +53,10 @@ GOOGLE_CLIENT_SECRET="your-google-client-secret"
 # Session Configuration
 SESSION_SECRET="your-secure-session-secret-key"
 
+# Server Configuration
+BASE_URL="http://localhost:3000"
+PORT=3000
+
 # Environment
 NODE_ENV="development"
 ```
@@ -59,8 +68,8 @@ NODE_ENV="development"
 3. Enable the Google+ API
 4. Create OAuth 2.0 credentials
 5. Add authorized redirect URIs:
-   - `http://localhost:3000/api/auth/google/callback` (development)
-   - `https://yourdomain.com/api/auth/google/callback` (production)
+   - `http://localhost:3000/api/auth/callback/google` (development)
+   - `https://yourdomain.com/api/auth/callback/google` (production)
 
 ### Database Setup
 
@@ -83,6 +92,11 @@ NODE_ENV="development"
    ```
 
 3. Open [http://localhost:3000](http://localhost:3000)
+
+### Development Authentication With Google OAuth:**
+   - Set up Google Cloud Console credentials
+   - Update environment variables with real credentials
+   - Use the "Sign In with Google" button
 
 ### Production Build
 
@@ -107,7 +121,7 @@ The application uses Google OAuth for authentication. Users are automatically re
 
 ### Authentication
 - `GET /api/auth/google` - Initiate Google OAuth
-- `GET /api/auth/google/callback` - OAuth callback
+- `GET /api/auth/callback/google` - OAuth callback
 - `GET /api/logout` - Logout user
 - `GET /api/auth/user` - Get current user
 
@@ -121,6 +135,27 @@ The application uses Google OAuth for authentication. Users are automatically re
 - `GET /api/sections/:id/assessment/questions` - Get assessment questions
 - `POST /api/assessment/results` - Submit assessment results
 - `GET /api/certificate/:resultId` - Generate certificate
+- `GET /api/admin/assessment/questions` - Get all assessment questions (admin)
+- `POST /api/assessment/questions` - Create assessment question (admin)
+- `PUT /api/assessment/questions/:id` - Update assessment question (admin)
+- `DELETE /api/assessment/questions/:id` - Delete assessment question (admin)
+
+## Migration from Replit
+
+This application has been successfully migrated from Replit to a standard deployment-ready service:
+
+### Changes Made:
+- ✅ **Removed Replit dependencies**: No more Replit-specific packages or configurations
+- ✅ **Standard PostgreSQL**: Migrated from Neon to standard PostgreSQL
+- ✅ **Google OAuth**: Replaced Replit OAuth with Google OAuth
+- ✅ **Docker support**: Added Dockerfile and docker-compose.yml
+- ✅ **Environment configuration**: Production-ready environment variable setup
+- ✅ **Port configuration**: Smart port binding (localhost for dev, 0.0.0.0 for production)
+- ✅ **Assessment Questions Management**: Complete CRUD interface for managing assessment questions
+- ✅ **Section-Based Architecture**: Organized training content with hierarchical sections
+- ✅ **Certificate Generation**: Professional HTML certificates for completed assessments
+- ✅ **100% Passing Requirement**: Updated assessment system to require perfect scores
+- ✅ **Admin Dashboard Enhancements**: Added assessment questions management tab
 
 ## Deployment
 
