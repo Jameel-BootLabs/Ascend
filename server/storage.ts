@@ -58,6 +58,7 @@ export interface IStorage {
   
   // Assessment operations
   getAssessmentQuestionsBySection(sectionId: number): Promise<AssessmentQuestion[]>;
+  getAllAssessmentQuestions(): Promise<AssessmentQuestion[]>;
   createAssessmentQuestion(question: InsertAssessmentQuestion): Promise<AssessmentQuestion>;
   updateAssessmentQuestion(id: number, question: Partial<InsertAssessmentQuestion>): Promise<AssessmentQuestion>;
   deleteAssessmentQuestion(id: number): Promise<void>;
@@ -271,6 +272,13 @@ export class DatabaseStorage implements IStorage {
       .from(assessmentQuestions)
       .where(eq(assessmentQuestions.sectionId, sectionId))
       .orderBy(asc(assessmentQuestions.order));
+  }
+
+  async getAllAssessmentQuestions(): Promise<AssessmentQuestion[]> {
+    return await db
+      .select()
+      .from(assessmentQuestions)
+      .orderBy(asc(assessmentQuestions.sectionId), asc(assessmentQuestions.order));
   }
 
   async createAssessmentQuestion(question: InsertAssessmentQuestion): Promise<AssessmentQuestion> {

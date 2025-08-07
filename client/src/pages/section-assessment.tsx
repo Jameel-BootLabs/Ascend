@@ -55,7 +55,7 @@ export default function SectionAssessment() {
 
   // Fetch assessment questions for this section
   const { data: questions = [], isLoading: questionsLoading } = useQuery({
-    queryKey: ["/api/sections", sectionId, "/assessment/questions"],
+    queryKey: ["/api/sections", sectionId, "assessment", "questions"],
     retry: false,
     enabled: !!sectionId,
   });
@@ -343,7 +343,7 @@ export default function SectionAssessment() {
                 <h4 className="text-lg font-semibold text-red-600 mb-4">Questions to Review</h4>
                 <div className="space-y-4 max-h-96 overflow-y-auto">
                   {questions
-                    .filter(q => answers[q.id] !== q.correctAnswer.toString())
+                    .filter(q => answers[q.id] !== q.correctAnswer)
                     .map((question, index) => (
                     <div key={question.id} className="bg-red-50 p-4 rounded-lg border border-red-200">
                       <h5 className="font-medium text-gray-900 mb-2">
@@ -351,10 +351,10 @@ export default function SectionAssessment() {
                       </h5>
                       <div className="space-y-2 text-sm">
                         <div className="text-red-600">
-                          <strong>Your answer:</strong> {question.options[parseInt(answers[question.id])]}
+                          <strong>Your answer:</strong> {question.options[answers[question.id].charCodeAt(0) - 97]}
                         </div>
                         <div className="text-green-600">
-                          <strong>Correct answer:</strong> {question.options[parseInt(question.correctAnswer)]}
+                          <strong>Correct answer:</strong> {question.options[question.correctAnswer.charCodeAt(0) - 97]}
                         </div>
                       </div>
                     </div>
@@ -438,7 +438,7 @@ export default function SectionAssessment() {
             >
               {currentQuestion.options.map((option, index) => (
                 <div key={index} className="flex items-center space-x-2">
-                  <RadioGroupItem value={index.toString()} id={`option-${index}`} />
+                  <RadioGroupItem value={String.fromCharCode(97 + index)} id={`option-${index}`} />
                   <Label htmlFor={`option-${index}`} className="text-gray-700 cursor-pointer">
                     {option}
                   </Label>

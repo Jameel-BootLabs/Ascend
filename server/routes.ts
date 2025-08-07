@@ -1,8 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-// TODO: Replace with Google OAuth
-// import { setupAuth, isAuthenticated } from "./googleAuth";
+import { setupAuth, isAuthenticated } from "./googleAuth";
 import { 
   insertTrainingSectionSchema,
   insertTrainingModuleSchema, 
@@ -21,14 +20,13 @@ const upload = multer({
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // TODO: Setup Google OAuth
-  // await setupAuth(app);
+  // Setup Google OAuth
+  await setupAuth(app);
 
   // Auth routes
-  // TODO: Add back isAuthenticated middleware after Google OAuth setup
-  app.get('/api/auth/user', /* isAuthenticated, */ async (req: any, res) => {
+  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const user = await storage.getUser(userId);
       res.json(user);
     } catch (error) {
@@ -120,7 +118,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/modules', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const user = await storage.getUser(userId);
       if (user?.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
@@ -137,7 +135,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put('/api/modules/:id', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const user = await storage.getUser(userId);
       if (user?.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
@@ -155,7 +153,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete('/api/modules/:id', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const user = await storage.getUser(userId);
       if (user?.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
@@ -184,7 +182,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/modules/:id/pages', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const user = await storage.getUser(userId);
       if (user?.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
@@ -205,7 +203,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put('/api/pages/:id', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const user = await storage.getUser(userId);
       if (user?.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
@@ -223,7 +221,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete('/api/pages/:id', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const user = await storage.getUser(userId);
       if (user?.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
@@ -241,7 +239,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Progress routes
   app.get('/api/progress', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const progress = await storage.getUserProgress(userId);
       res.json(progress);
     } catch (error) {
@@ -252,7 +250,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/progress/:moduleId', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const moduleId = parseInt(req.params.moduleId);
       const progress = await storage.getModuleProgress(userId, moduleId);
       res.json(progress);
@@ -264,7 +262,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/progress', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const progressData = insertEmployeeProgressSchema.parse({
         ...req.body,
         userId,
@@ -280,7 +278,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Admin progress routes
   app.get('/api/admin/progress', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const user = await storage.getUser(userId);
       if (user?.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
@@ -308,7 +306,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/assessment/questions', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const user = await storage.getUser(userId);
       if (user?.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
@@ -325,7 +323,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put('/api/assessment/questions/:id', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const user = await storage.getUser(userId);
       if (user?.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
@@ -343,7 +341,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete('/api/assessment/questions/:id', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const user = await storage.getUser(userId);
       if (user?.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
@@ -361,7 +359,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Assessment result routes
   app.get('/api/assessment/results', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const results = await storage.getUserAssessmentResults(userId);
       res.json(results);
     } catch (error) {
@@ -372,7 +370,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/assessment/results', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const { sectionId, answers } = req.body;
       
       // Get the questions for this section to verify answers
@@ -383,10 +381,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       questions.forEach(question => {
         const userAnswer = answers[question.id.toString()];
         const correctAnswerIndex = question.correctAnswer;
-        const correctAnswerText = question.options[correctAnswerIndex];
         
-        // Check if user answer matches either the index or the text
-        if (userAnswer === correctAnswerIndex.toString() || userAnswer === correctAnswerText) {
+        // Check if user answer matches the correct answer (both should be letters: a, b, c, d)
+        if (userAnswer === correctAnswerIndex) {
           correctAnswers++;
         }
       });
@@ -414,7 +411,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Certificate generation endpoint
   app.get('/api/certificate/:resultId', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const resultId = parseInt(req.params.resultId);
       
       // Get the assessment result
@@ -531,7 +528,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Admin assessment results routes
   app.get('/api/admin/assessment/results', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const user = await storage.getUser(userId);
       if (user?.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
@@ -545,10 +542,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin assessment questions routes
+  app.get('/api/admin/assessment/questions', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      const user = await storage.getUser(userId);
+      if (user?.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const allQuestions = await storage.getAllAssessmentQuestions();
+      res.json(allQuestions);
+    } catch (error) {
+      console.error("Error fetching all assessment questions:", error);
+      res.status(500).json({ message: "Failed to fetch all assessment questions" });
+    }
+  });
+
   // Reset assessment results for a user
   app.delete('/api/admin/assessment/results/:userId', isAuthenticated, async (req: any, res) => {
     try {
-      const adminUserId = req.user.claims.sub;
+      const adminUserId = req.user.id;
       const adminUser = await storage.getUser(adminUserId);
       if (adminUser?.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
@@ -566,7 +580,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Section management routes
   app.post('/api/sections', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const user = await storage.getUser(userId);
       if (user?.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
@@ -583,7 +597,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put('/api/sections/:id', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const user = await storage.getUser(userId);
       if (user?.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
@@ -601,7 +615,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete('/api/sections/:id', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const user = await storage.getUser(userId);
       if (user?.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
@@ -619,7 +633,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Module section assignment routes
   app.put('/api/modules/:id/section', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const user = await storage.getUser(userId);
       if (user?.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
@@ -639,7 +653,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // File upload route
   app.post('/api/upload', isAuthenticated, upload.single('file'), async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const user = await storage.getUser(userId);
       if (user?.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
@@ -667,7 +681,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // PPT processing route
   app.post('/api/modules/process-ppt', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const user = await storage.getUser(userId);
       if (user?.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });

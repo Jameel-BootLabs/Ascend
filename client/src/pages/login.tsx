@@ -4,7 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 
 export default function Login() {
   const handleLogin = () => {
-    window.location.href = '/api/login';
+    window.location.href = '/api/auth/google';
   };
 
   return (
@@ -29,7 +29,7 @@ export default function Login() {
                 className="w-full bg-primary hover:bg-primary-dark text-white py-3 px-4 transition-colors"
               >
                 <Shield className="mr-2 h-5 w-5" />
-                Sign In with SSO
+                Sign In with Google
               </Button>
             </div>
           </CardContent>

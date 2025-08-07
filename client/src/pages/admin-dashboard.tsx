@@ -50,9 +50,11 @@ import {
   Database,
   Wifi,
   RotateCcw,
-  FolderOpen
+  FolderOpen,
+  HelpCircle
 } from "lucide-react";
 import ModuleEditorDialog from "@/components/module-editor-dialog";
+import AssessmentQuestionDialog from "@/components/assessment-question-dialog";
 
 export default function AdminDashboard() {
   const { user, isAuthenticated, isLoading } = useAuth();
@@ -93,6 +95,11 @@ export default function AdminDashboard() {
 
   const { data: assessmentResults = [] } = useQuery({
     queryKey: ["/api/admin/assessment/results"],
+    retry: false,
+  });
+
+  const { data: assessmentQuestions = [] } = useQuery({
+    queryKey: ["/api/admin/assessment/questions"],
     retry: false,
   });
 
@@ -216,6 +223,37 @@ export default function AdminDashboard() {
       toast({
         title: "Error",
         description: "Failed to delete section",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteAssessmentQuestionMutation = useMutation({
+    mutationFn: async (questionId: number) => {
+      await apiRequest("DELETE", `/api/assessment/questions/${questionId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/assessment/questions"] });
+      toast({
+        title: "Success",
+        description: "Assessment question deleted successfully",
+      });
+    },
+    onError: (error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+      toast({
+        title: "Error",
+        description: "Failed to delete assessment question",
         variant: "destructive",
       });
     },
@@ -362,7 +400,7 @@ export default function AdminDashboard() {
       <Card className="shadow-material">
         <Tabs defaultValue="reporting" className="w-full">
           <div className="border-b border-gray-200">
-            <TabsList className="grid w-full grid-cols-4">
+            <TabsList className="grid w-full grid-cols-5">
               <TabsTrigger value="reporting" className="flex items-center">
                 <BarChart className="mr-2 h-4 w-4" />
                 Reports
@@ -378,6 +416,10 @@ export default function AdminDashboard() {
               <TabsTrigger value="section-mgmt" className="flex items-center">
                 <Plus className="mr-2 h-4 w-4" />
                 Sections
+              </TabsTrigger>
+              <TabsTrigger value="assessments" className="flex items-center">
+                <HelpCircle className="mr-2 h-4 w-4" />
+                Assessment Questions
               </TabsTrigger>
             </TabsList>
           </div>
@@ -854,6 +896,106 @@ export default function AdminDashboard() {
                   </Card>
                 ))}
               </div>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="assessments" className="p-6">
+            <div className="mb-6 flex justify-between items-center">
+              <h2 className="text-xl font-semibold text-gray-900">Assessment Questions Management</h2>
+              <AssessmentQuestionDialog 
+                sections={sections}
+                mode="create"
+              />
+            </div>
+
+            <div className="space-y-6">
+              {sections.map((section) => {
+                const sectionQuestions = assessmentQuestions.filter(q => q.sectionId === section.id);
+                return (
+                  <Card key={section.id} className="shadow-sm">
+                    <CardHeader>
+                      <CardTitle className="text-lg flex items-center justify-between">
+                        <span>{section.title} - Assessment Questions</span>
+                        <Badge variant="outline">{sectionQuestions.length} questions</Badge>
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      {sectionQuestions.length === 0 ? (
+                        <div className="text-center py-8 text-gray-500">
+                          <HelpCircle className="mx-auto h-12 w-12 mb-4" />
+                          <p>No assessment questions for this section yet.</p>
+                          <p className="text-sm">Click "Add Question" to create the first assessment question.</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-4">
+                          {sectionQuestions.map((question) => (
+                            <div key={question.id} className="border rounded-lg p-4">
+                              <div className="flex items-start justify-between mb-3">
+                                <div className="flex-1">
+                                  <h4 className="font-medium text-gray-900 mb-2">
+                                    Question {question.order}: {question.question}
+                                  </h4>
+                                  <div className="space-y-1">
+                                    {question.options.map((option, index) => (
+                                      <div key={index} className="flex items-center space-x-2">
+                                        <span className={`text-sm font-medium ${
+                                          String.fromCharCode(97 + index) === question.correctAnswer 
+                                            ? 'text-green-600' 
+                                            : 'text-gray-600'
+                                        }`}>
+                                          {String.fromCharCode(97 + index)}.
+                                        </span>
+                                        <span className={`text-sm ${
+                                          String.fromCharCode(97 + index) === question.correctAnswer 
+                                            ? 'text-green-600 font-medium' 
+                                            : 'text-gray-600'
+                                        }`}>
+                                          {option}
+                                        </span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                                <div className="flex items-center space-x-2 ml-4">
+                                  <AssessmentQuestionDialog
+                                    question={question}
+                                    sections={sections}
+                                    mode="edit"
+                                  />
+                                  <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                      <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-700">
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                      <AlertDialogHeader>
+                                        <AlertDialogTitle>Delete Assessment Question</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                          Are you sure you want to delete this assessment question? This action cannot be undone.
+                                        </AlertDialogDescription>
+                                      </AlertDialogHeader>
+                                      <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                        <AlertDialogAction
+                                          onClick={() => deleteAssessmentQuestionMutation.mutate(question.id)}
+                                          className="bg-red-600 hover:bg-red-700"
+                                        >
+                                          Delete Question
+                                        </AlertDialogAction>
+                                      </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                  </AlertDialog>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
           </TabsContent>
         </Tabs>
