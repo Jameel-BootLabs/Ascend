@@ -52,10 +52,17 @@ export async function setupAuth(app: Express) {
     scope: ['profile', 'email']
   }, async (accessToken, refreshToken, profile, done) => {
     try {
+      const userEmail = profile.emails?.[0]?.value || '';
+      
+      // Check if email domain is allowed (@bootlabstech.com only)
+      if (!userEmail.endsWith('@bootlabstech.com')) {
+        return done(new Error('Access denied. Only bootlabstech organization email addresses are allowed.'), undefined);
+      }
+
       // Extract user information from Google profile
       const googleUser = {
         id: profile.id,
-        email: profile.emails?.[0]?.value || '',
+        email: userEmail,
         firstName: profile.name?.givenName || '',
         lastName: profile.name?.familyName || '',
         profileImageUrl: profile.photos?.[0]?.value || '',
@@ -105,14 +112,41 @@ export async function setupAuth(app: Express) {
   );
 
   app.get('/api/auth/callback/google',
-    passport.authenticate('google', { 
-      failureRedirect: '/api/login' 
-    }),
-    (req, res) => {
-      // Successful authentication, redirect to home
-      res.redirect('/');
+    (req, res, next) => {
+      passport.authenticate('google', (err: any, user: any, info: any) => {
+        if (err) {
+          console.error('OAuth callback error:', err);
+          // Check if it's a domain restriction error
+          if (err.message.includes('@bootlabstech.com')) {
+            return res.redirect('/?error=domain_restricted');
+          }
+          return res.redirect('/?error=auth_failed');
+        }
+        if (!user) {
+          return res.redirect('/?error=auth_failed');
+        }
+        req.logIn(user, (loginErr) => {
+          if (loginErr) {
+            console.error('Login error:', loginErr);
+            return res.redirect('/?error=auth_failed');
+          }
+          return res.redirect('/');
+        });
+      })(req, res, next);
     }
   );
+
+  // Error page for authentication failures
+  app.get('/api/auth/error', (req, res) => {
+    const error = req.query.error || 'Authentication failed';
+    res.status(401).json({ 
+      error: 'Access Denied',
+      message: error === 'Access denied. Only @bootlabstech.com email addresses are allowed.' 
+        ? 'Only @bootlabstech.com email addresses are allowed to access this application.'
+        : 'Authentication failed. Please try again.',
+      details: error
+    });
+  });
 
   app.get('/api/login', (req, res) => {
     res.redirect('/api/auth/google');
