@@ -1,0 +1,151 @@
+App Name: SecureLearn - Information Security Training Portal
+1. Overview
+Create a web application for our organization's internal information security training. The application will serve as a self-paced learning portal for all employees. It needs to have two main user roles: Employee and Admin. The core functionality includes user authentication via Replit Auth, a training module, an assessment module, and an admin dashboard for tracking progress and managing content.
+
+2. User Roles & Authentication
+Employee:
+
+Can log in to the application using their Replit account.
+
+Can access the training materials.
+
+Can take the final assessment.
+
+Can view their own training status and assessment score.
+
+Admin:
+
+Has all the capabilities of an Employee.
+
+Can access a dashboard to view the training status and assessment scores of all employees.
+
+Can manage training content: create, update, and delete modules and their pages (supporting text, images, videos, and PPT uploads).
+
+Can manage the assessment questions.
+
+3. App Pages & Functionality
+Page 1: Login Page
+A clean, professional-looking page with the company logo.
+
+A single button: "Login with Replit" which initiates the Replit authentication process.
+
+Page 2: Training Dashboard (Employee View)
+This is the main page after an employee logs in.
+
+It should display the available training modules.
+
+Layout: Use a card-based layout for the training modules. Each card should show:
+
+Module Title (e.g., "Phishing Awareness," "Data Privacy Basics").
+
+A brief description of the module.
+
+An estimated completion time.
+
+A status indicator: "Not Started," "In Progress," or "Completed."
+
+There should be a clear "Start Training" or "Continue Training" button.
+
+Page 3: Training Module Page
+This page will host the actual training content, displaying one page (or slide) at a time.
+
+Content Format: Supports pages with rich text, images, embedded videos, or slides from a PPT.
+
+Navigation:
+
+"Previous" and "Next" buttons to navigate between the pages of the module.
+
+A progress bar at the top showing how far the user has progressed through the module.
+
+The app should automatically save the user's progress.
+
+Page 4: Assessment Page
+This page becomes accessible only after an employee has completed all training modules.
+
+Format: A multiple-choice quiz.
+
+Questions: Display one question at a time.
+
+Passing Score: The employee must answer all questions correctly (100/100) to pass.
+
+If Failed: If the employee fails, they should be shown which questions they got wrong and be prompted to review the relevant training material before they can retake the test. There should be no limit on retake attempts.
+
+If Passed: Upon passing, display a congratulatory message and a "Certificate of Completion" which can be downloaded as a PDF.
+
+Page 5: Admin Dashboard (Reporting)
+This page is only accessible to users with the "Admin" role. It has tabs for "Reporting" and "Content Management".
+
+Main View: A table displaying the status of all employees.
+
+Table Columns: Employee Name, Employee Email, Training Status, Assessment Score, Completion Date.
+
+Functionality: Search, Filter by Status, and Export to CSV.
+
+Page 6: Admin Dashboard (Content Management)
+This page allows Admins to create and manage the training curriculum.
+
+Module Management:
+
+A list of existing training modules is displayed.
+
+Buttons to "Create New Module", "Edit", or "Delete" a module.
+
+Content Editor (when creating/editing a module):
+
+A form to set the Module Title and Description.
+
+A content area to build the module page by page. Admins should see a list of pages for the module and be able to reorder them via drag-and-drop.
+
+Add Content Buttons: "Add Text Page", "Add Image Page", "Add Video Page", "Upload PPT".
+
+Text Page: Opens a rich-text editor to create a content page.
+
+Image/Video Page: Prompts to upload an image file or provide a video URL.
+
+Upload PPT: Prompts to upload a .pptx or .ppt file. Upon upload, the system must process the file and create a separate, sequential page within the module for each slide of the presentation.
+
+4. Database Schema
+Users:
+
+UserID (Primary Key, from Replit Auth)
+
+FullName (from Replit Auth)
+
+Email (from Replit Auth)
+
+Role (Employee/Admin)
+
+TrainingModules:
+
+ModuleID (Primary Key), Title, Description, Order
+
+ModulePages:
+
+PageID (Primary Key)
+
+ModuleID (Foreign Key to TrainingModules)
+
+PageOrder (Number, for sequencing)
+
+PageType (Enum: 'Text', 'Image', 'Video', 'PPTSlide')
+
+Content (Stores the rich text, the URL to the image/video, or the URL to the converted PPT slide image)
+
+EmployeeProgress:
+
+ProgressID (Primary Key), UserID, ModuleID, Status (Not Started, In Progress, Completed), LastViewedPageID
+
+AssessmentResults:
+
+ResultID (Primary Key), UserID, Score, DateTaken
+
+5. Technical Requirements & Workflow
+Authentication: Integrate with Replit Auth. User information (UserID, FullName, Email) should be pulled from the Replit user profile upon login.
+
+PPT Conversion: The backend must include a service or integrate with a third-party API to handle the conversion of uploaded PPT files into individual images (e.g., PNG or JPG) for each slide.
+
+Workflow 1 (Employee): Login -> View Dashboard -> Complete Modules page-by-page -> Take Assessment -> Pass & Get Certificate.
+
+Workflow 2 (Admin Reporting): Login -> Admin Dashboard -> View/Search/Filter Employee Progress -> Export Report.
+
+Workflow 3 (Admin Content): Login -> Admin Dashboard -> Content Management -> Create/Edit Module -> Add/Arrange Content Pages (Text, Image, Video, PPT) -> Save Module.
