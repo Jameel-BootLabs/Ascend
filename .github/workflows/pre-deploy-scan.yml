@@ -1,0 +1,172 @@
+name: Pre-Deployment Code Scan
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  code-scan:
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: test_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Create test environment file
+      run: |
+        cp production.env.example .env
+        echo "DATABASE_URL=postgresql://postgres:postgres@localhost:5432/test_db" >> .env
+        echo "GOOGLE_CLIENT_ID=test-client-id" >> .env
+        echo "GOOGLE_CLIENT_SECRET=test-client-secret" >> .env
+        echo "SESSION_SECRET=test-session-secret-64-chars-long-for-testing-purposes-only" >> .env
+        echo "BASE_URL=http://localhost:3000" >> .env
+        echo "NODE_ENV=test" >> .env
+
+    - name: Run database migrations
+      run: npm run db:push
+
+    - name: Make scan script executable
+      run: chmod +x scripts/pre-deploy-scan.sh
+
+    - name: Run pre-deployment scan
+      run: npm run scan
+
+    - name: Upload scan results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: scan-results
+        path: |
+          dist/
+          node_modules/.cache/
+        retention-days: 7
+
+  security-audit:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Run npm audit
+      run: npm audit --audit-level=moderate
+
+    - name: Run Snyk security scan
+      uses: snyk/actions/node@master
+      env:
+        SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+      with:
+        args: --severity-threshold=high
+      continue-on-error: true
+
+  code-quality:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Run TypeScript check
+      run: npm run check
+
+    - name: Run ESLint (if configured)
+      run: |
+        if [ -f ".eslintrc.js" ] || [ -f ".eslintrc.json" ]; then
+          npx eslint client/src/ server/ --ext .ts,.tsx
+        else
+          echo "ESLint not configured, skipping..."
+        fi
+
+    - name: Check for console statements
+      run: |
+        CONSOLE_COUNT=$(grep -r "console\." client/src/ server/ --include="*.ts" --include="*.tsx" | wc -l || echo "0")
+        if [ "$CONSOLE_COUNT" -gt 0 ]; then
+          echo "Found $CONSOLE_COUNT console statements in source code:"
+          grep -r "console\." client/src/ server/ --include="*.ts" --include="*.tsx" || true
+          echo "::warning::Found console statements in production code"
+        else
+          echo "No console statements found in source code"
+        fi
+
+    - name: Check for TODO/FIXME comments
+      run: |
+        TODO_COUNT=$(grep -r "TODO\|FIXME" client/src/ server/ --include="*.ts" --include="*.tsx" | wc -l || echo "0")
+        if [ "$TODO_COUNT" -gt 0 ]; then
+          echo "Found $TODO_COUNT TODO/FIXME comments:"
+          grep -r "TODO\|FIXME" client/src/ server/ --include="*.ts" --include="*.tsx" || true
+          echo "::warning::Found TODO/FIXME comments in code"
+        else
+          echo "No TODO/FIXME comments found"
+        fi
+
+  build-test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Test build
+      run: npm run build
+
+    - name: Verify build output
+      run: |
+        if [ ! -d "dist" ] || [ -z "$(ls -A dist 2>/dev/null)" ]; then
+          echo "::error::Build output directory is empty or missing"
+          exit 1
+        else
+          echo "Build output verified successfully"
+          ls -la dist/
+        fi 

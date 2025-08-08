@@ -9,6 +9,11 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { apiRequest } from "@/lib/queryClient";
+import type { 
+  TrainingModule, 
+  ModulePage, 
+  EmployeeProgress 
+} from "@/types";
 import { ArrowLeft, ChevronLeft, ChevronRight, AlertTriangle, CheckCircle, XCircle } from "lucide-react";
 
 export default function TrainingModule() {
@@ -36,19 +41,19 @@ export default function TrainingModule() {
     }
   }, [isAuthenticated, isLoading, toast]);
 
-  const { data: module } = useQuery({
+  const { data: module } = useQuery<TrainingModule>({
     queryKey: ["/api/modules", moduleId],
     enabled: !!moduleId,
     retry: false,
   });
 
-  const { data: pages = [] } = useQuery({
+  const { data: pages = [] } = useQuery<ModulePage[]>({
     queryKey: ["/api/modules", moduleId, "pages"],
     enabled: !!moduleId,
     retry: false,
   });
 
-  const { data: progress } = useQuery({
+  const { data: progress } = useQuery<EmployeeProgress>({
     queryKey: ["/api/progress", moduleId],
     enabled: !!moduleId,
     retry: false,
@@ -173,7 +178,7 @@ export default function TrainingModule() {
         return (
           <div className="max-w-4xl mx-auto">
             <h1 className="text-2xl font-bold text-gray-900 mb-6">{currentPage.title}</h1>
-            <img src={currentPage.content} alt={currentPage.title} className="w-full h-auto rounded-lg" />
+            <img src={currentPage.content || ''} alt={currentPage.title || ''} className="w-full h-auto rounded-lg" />
           </div>
         );
       
@@ -183,7 +188,7 @@ export default function TrainingModule() {
             <h1 className="text-2xl font-bold text-gray-900 mb-6">{currentPage.title}</h1>
             <div className="aspect-video">
               <iframe
-                src={currentPage.content}
+                src={currentPage.content || ''}
                 className="w-full h-full rounded-lg"
                 frameBorder="0"
                 allowFullScreen
@@ -290,7 +295,7 @@ export default function TrainingModule() {
             </Button>
             
             <div className="flex space-x-2">
-              {pages.map((_, index) => (
+              {pages.map((_: ModulePage, index: number) => (
                 <div
                   key={index}
                   className={`w-2 h-2 rounded-full ${

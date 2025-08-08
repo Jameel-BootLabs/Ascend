@@ -2,6 +2,12 @@ import { useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
+import type { 
+  EmployeeProgressWithModule, 
+  TrainingModule, 
+  TrainingSection, 
+  AssessmentResult 
+} from "@/types";
 import { Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,7 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { Book, CheckCircle, Clock, Shield, Database, Wifi, PlayCircle, UserCheck, FolderOpen } from "lucide-react";
-import type { TrainingSection, TrainingModule, EmployeeProgress, AssessmentResult } from "@shared/schema";
+
 
 export default function EmployeeDashboard() {
   const { user, isAuthenticated, isLoading } = useAuth();
@@ -31,22 +37,22 @@ export default function EmployeeDashboard() {
     }
   }, [isAuthenticated, isLoading, toast]);
 
-  const { data: sections = [], isLoading: sectionsLoading } = useQuery({
+  const { data: sections = [], isLoading: sectionsLoading } = useQuery<TrainingSection[]>({
     queryKey: ["/api/sections"],
     retry: false,
   });
 
-  const { data: modules = [], isLoading: modulesLoading } = useQuery({
+  const { data: modules = [], isLoading: modulesLoading } = useQuery<TrainingModule[]>({
     queryKey: ["/api/modules"],
     retry: false,
   });
 
-  const { data: progress = [] } = useQuery({
+  const { data: progress = [] } = useQuery<EmployeeProgressWithModule[]>({
     queryKey: ["/api/progress"],
     retry: false,
   });
 
-  const { data: assessmentResults = [] } = useQuery({
+  const { data: assessmentResults = [] } = useQuery<AssessmentResult[]>({
     queryKey: ["/api/assessment/results"],
     retry: false,
   });
@@ -64,11 +70,11 @@ export default function EmployeeDashboard() {
   }
 
   // Calculate progress statistics
-  const completedModules = progress.filter(p => p.status === 'completed').length;
+  const completedModules = progress.filter((p: EmployeeProgressWithModule) => p.status === 'completed').length;
   const overallProgress = modules.length > 0 ? Math.round((completedModules / modules.length) * 100) : 0;
   
   // Get the best assessment score across all sections
-  const bestAssessment = assessmentResults.reduce((best, current) => {
+  const bestAssessment = assessmentResults.reduce((best: AssessmentResult | null, current: AssessmentResult) => {
     if (!best || current.score > best.score) return current;
     return best;
   }, null);
@@ -76,7 +82,7 @@ export default function EmployeeDashboard() {
 
   // Helper functions for module status
   const getModuleStatus = (moduleId: number) => {
-    const moduleProgress = progress.find(p => p.moduleId === moduleId);
+    const moduleProgress = progress.find((p: EmployeeProgressWithModule) => p.moduleId === moduleId);
     return moduleProgress?.status || 'not_started';
   };
 
@@ -92,7 +98,7 @@ export default function EmployeeDashboard() {
   };
 
   const getProgressPercentage = (moduleId: number) => {
-    const moduleProgress = progress.find(p => p.moduleId === moduleId);
+    const moduleProgress = progress.find((p: EmployeeProgressWithModule) => p.moduleId === moduleId);
     switch (moduleProgress?.status) {
       case 'completed':
         return 100;
@@ -105,7 +111,7 @@ export default function EmployeeDashboard() {
 
   // Group modules by section
   const getModulesBySection = (sectionId: number) => {
-    return modules.filter(module => module.sectionId === sectionId);
+    return modules.filter((module: TrainingModule) => module.sectionId === sectionId);
   };
 
   // Calculate section progress
@@ -113,7 +119,7 @@ export default function EmployeeDashboard() {
     const sectionModules = getModulesBySection(sectionId);
     if (sectionModules.length === 0) return 0;
     
-    const completedCount = sectionModules.filter(module => 
+    const completedCount = sectionModules.filter((module: TrainingModule) => 
       getModuleStatus(module.id) === 'completed'
     ).length;
     
@@ -181,7 +187,7 @@ export default function EmployeeDashboard() {
       <div className="mb-6">
         <h2 className="text-xl font-semibold text-gray-900 mb-4">Training Sections</h2>
         <Accordion type="single" collapsible defaultValue={sections[0]?.id.toString()} className="space-y-3">
-          {sections.map((section) => {
+          {sections.map((section: TrainingSection) => {
             const sectionModules = getModulesBySection(section.id);
             const sectionProgress = getSectionProgress(section.id);
             
@@ -208,7 +214,7 @@ export default function EmployeeDashboard() {
                 </AccordionTrigger>
                 <AccordionContent className="px-6 pb-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {sectionModules.map((module) => {
+                    {sectionModules.map((module: TrainingModule) => {
                       const status = getModuleStatus(module.id);
                       const progressPercentage = getProgressPercentage(module.id);
                       
