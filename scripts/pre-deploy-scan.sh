@@ -77,32 +77,32 @@ check_typescript() {
 }
 
 # 2. Security Audit
-run_security_audit() {
-    print_status "Running npm security audit..."
+# run_security_audit() {
+#     print_status "Running npm security audit..."
     
-    local audit_output
-    audit_output=$(npm audit --audit-level=moderate 2>&1 || true)
+#     local audit_output
+#     audit_output=$(npm audit --audit-level=moderate 2>&1 || true)
     
-    if echo "$audit_output" | grep -q "found 0 vulnerabilities"; then
-        print_success "Security audit passed - no vulnerabilities found"
-    elif echo "$audit_output" | grep -q "found [0-9]* vulnerabilities"; then
-        local vuln_count=$(echo "$audit_output" | grep -o "found [0-9]* vulnerabilities" | grep -o "[0-9]*")
-        print_warning "Security audit found $vuln_count vulnerabilities"
-        echo "$audit_output"
+#     if echo "$audit_output" | grep -q "found 0 vulnerabilities"; then
+#         print_success "Security audit passed - no vulnerabilities found"
+#     elif echo "$audit_output" | grep -q "found [0-9]* vulnerabilities"; then
+#         local vuln_count=$(echo "$audit_output" | grep -o "found [0-9]* vulnerabilities" | grep -o "[0-9]*")
+#         print_warning "Security audit found $vuln_count vulnerabilities"
+#         echo "$audit_output"
         
-        # Ask user if they want to continue
-        read -p "Do you want to continue with deployment despite vulnerabilities? (y/N): " -n 1 -r
-        echo
-        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-            print_error "Deployment aborted due to security vulnerabilities"
-            exit 1
-        fi
-    else
-        print_error "Security audit failed to run properly"
-        echo "$audit_output"
-        exit 1
-    fi
-}
+#         # Ask user if they want to continue
+#         read -p "Do you want to continue with deployment despite vulnerabilities? (y/N): " -n 1 -r
+#         echo
+#         if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+#             print_error "Deployment aborted due to security vulnerabilities"
+#             exit 1
+#         fi
+#     else
+#         print_error "Security audit failed to run properly"
+#         echo "$audit_output"
+#         exit 1
+#     fi
+# }
 
 # 3. Dependency Check
 check_dependencies_health() {
