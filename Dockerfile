@@ -1,5 +1,5 @@
 # Multi-stage build for production
-FROM node:18-alpine AS builder
+FROM node:24-alpine AS builder
 
 WORKDIR /app
 
@@ -8,8 +8,8 @@ COPY package*.json ./
 COPY tsconfig.json ./
 COPY drizzle.config.ts ./
 
-# Install dependencies
-RUN npm ci --only=production
+# Install all dependencies (including dev dependencies for build)
+RUN npm ci
 
 # Copy source code
 COPY . .
@@ -18,7 +18,7 @@ COPY . .
 RUN npm run build
 
 # Production stage
-FROM node:18-alpine AS runner
+FROM node:24-alpine AS runner
 
 WORKDIR /app
 
@@ -30,9 +30,11 @@ RUN adduser --system --uid 1001 nextjs
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/package*.json ./
 COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/drizzle.config.ts ./
+COPY --from=builder /app/shared ./shared
 
-# Copy uploads directory if it exists
-COPY --from=builder /app/uploads ./uploads
+# Create uploads directory
+RUN mkdir -p ./uploads
 
 # Set ownership
 RUN chown -R nextjs:nodejs /app

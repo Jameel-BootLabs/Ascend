@@ -1,16 +1,14 @@
-version: '3.8'
-
 services:
   app:
     build: .
     ports:
       - "3000:3000"
     environment:
-      - DATABASE_URL=postgresql://securelearn:password@db:5432/securelearn_db
+      - DATABASE_URL=postgresql://crashuser:crashpass@db:5432/ascend?sslmode=disable
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
       - SESSION_SECRET=${SESSION_SECRET:-default-secret-change-in-production}
-      - NODE_ENV=${NODE_ENV:-development}
+      - NODE_ENV=production
       - BASE_URL=${BASE_URL:-http://localhost:3000}
     depends_on:
       db:
@@ -26,18 +24,18 @@ services:
       start_period: 40s
 
   db:
-    image: postgres:15-alpine
+    image: postgres:14-alpine
     restart: unless-stopped
     environment:
-      - POSTGRES_DB=securelearn_db
-      - POSTGRES_USER=securelearn
-      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=ascend
+      - POSTGRES_USER=crashuser
+      - POSTGRES_PASSWORD=crashpass
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U securelearn -d securelearn_db"]
+      test: ["CMD-SHELL", "pg_isready -U crashuser -d ascend"]
       interval: 10s
       timeout: 5s
       retries: 5

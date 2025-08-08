@@ -31,7 +31,7 @@ export function getSession() {
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: process.env.NODE_ENV === 'production' && process.env.BASE_URL?.startsWith('https'),
       maxAge: sessionTtl,
     },
   });
@@ -54,8 +54,8 @@ export async function setupAuth(app: Express) {
     try {
       const userEmail = profile.emails?.[0]?.value || '';
       
-      // Check if email domain is allowed (@bootlabstech.com only)
-      if (!userEmail.endsWith('@bootlabstech.com')) {
+      // Check if email domain is allowed (@bootlabstech.com only) - case insensitive
+      if (!userEmail.toLowerCase().endsWith('@bootlabstech.com')) {
         return done(new Error('Access denied. Only bootlabstech organization email addresses are allowed.'), undefined);
       }
 
