@@ -426,7 +426,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Get user and section information
       const user = await storage.getUser(userId);
-      const section = await storage.getSection(result.sectionId);
+      const section = result.sectionId ? await storage.getSection(result.sectionId) : null;
       
       if (!user || !section) {
         return res.status(404).json({ message: "User or section not found" });
@@ -496,7 +496,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 </div>
                 <div class="detail-item">
                   <div class="detail-label">Date Completed</div>
-                  <div class="detail-value">${new Date(result.dateTaken).toLocaleDateString()}</div>
+                  <div class="detail-value">${result.dateTaken ? new Date(result.dateTaken).toLocaleDateString() : 'N/A'}</div>
                 </div>
               </div>
             </div>
@@ -726,7 +726,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create the pages
       const createdPages = [];
       for (const pageData of samplePages) {
-        const page = await storage.createModulePage(pageData);
+        const page = await storage.createModulePage({
+          ...pageData,
+          pageType: pageData.pageType as "text" | "image" | "video" | "ppt_slide"
+        });
         createdPages.push(page);
       }
 

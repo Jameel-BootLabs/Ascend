@@ -27,7 +27,9 @@ An information security training portal built with React, Express.js, and Postgr
 - Multer for file uploads
 - Express Session with PostgreSQL storage
 
-## Local Development Setup
+## 🚀 Quick Start
+
+For detailed setup instructions for all environments (Local Development, Docker, Production), see **[SETUP.md](./SETUP.md)**.
 
 ### Prerequisites
 
@@ -35,69 +37,25 @@ An information security training portal built with React, Express.js, and Postgr
 - **PostgreSQL 12+**
 - **Google OAuth credentials**
 
-### Step 1: Clone and Install
+### Quick Setup
 
 ```bash
+# Clone and install
 git clone <repository-url>
-cd slp
+cd Ascend
 npm install
+
+# Choose your environment setup:
+# 1. Local Development: cp env.example .env
+# 2. Docker: cp docker.env.example .env  
+# 3. Production: cp production.env.example .env
+
+# Edit .env with your credentials
+# Run database migration: npm run db:push
+# Start: npm run dev (local) or docker compose up -d (Docker)
 ```
 
-### Step 2: Database Setup
-
-1. **Create PostgreSQL database:**
-   ```bash
-   createdb securelearn_dev
-   ```
-
-2. **Set up environment variables:**
-   ```bash
-   cp production.env.example .env
-   ```
-   
-   Update `.env` with your local database credentials:
-   ```env
-   DATABASE_URL="postgresql://username:password@localhost:5432/securelearn_dev"
-   ```
-
-3. **Initialize database schema:**
-   ```bash
-   npm run db:push
-   ```
-
-### Step 3: Google OAuth Setup
-
-1. **Go to [Google Cloud Console](https://console.cloud.google.com/)**
-2. **Create a new project** or select existing one
-3. **Enable APIs:**
-   - Google+ API
-   - Google OAuth2 API
-4. **Create OAuth 2.0 credentials:**
-   - Application type: "Web application"
-   - Authorized JavaScript origins: `http://localhost:3000`
-   - Authorized redirect URIs: `http://localhost:3000/api/auth/google/callback`
-5. **Copy credentials to `.env`:**
-   ```env
-   GOOGLE_CLIENT_ID="your-client-id.apps.googleusercontent.com"
-   GOOGLE_CLIENT_SECRET="your-client-secret"
-   ```
-
-### Step 4: Environment Configuration
-
-Create a complete `.env` file:
-
-```env
-# Database Configuration
-DATABASE_URL="postgresql://username:password@localhost:5432/securelearn_dev"
-
-# Google OAuth Configuration
-GOOGLE_CLIENT_ID="your-google-client-id.apps.googleusercontent.com"
-GOOGLE_CLIENT_SECRET="your-google-client-secret"
-
-# Session Configuration (Generate a secure random string)
-SESSION_SECRET="your-secure-session-secret-key"
-
-# Application Configuration
+For complete setup instructions, see **[SETUP.md](./SETUP.md)**.
 BASE_URL="http://localhost:3000"
 NODE_ENV="development"
 ```

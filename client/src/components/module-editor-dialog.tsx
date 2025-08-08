@@ -1,34 +1,52 @@
-import { useState, useEffect } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { z } from "zod";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
-import { isUnauthorizedError } from "@/lib/authUtils";
-import { Edit, Plus, Trash2, Save, X, ChevronUp, ChevronDown } from "lucide-react";
+import { apiRequest, isUnauthorizedError } from "@/lib/utils";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Plus, Trash2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+import type { TrainingModule, TrainingSection, ModulePage } from "../types";
 
 const moduleSchema = z.object({
   title: z.string().min(1, "Title is required"),
-  description: z.string().min(1, "Description is required"),
+  description: z.string().optional(),
   order: z.number().min(1, "Order must be at least 1"),
-  estimatedDuration: z.number().min(1, "Duration must be at least 1 minute"),
+  estimatedDuration: z.number().min(1, "Duration must be at least 1 minute").optional(),
+  sectionId: z.number().optional(),
 });
 
 const pageSchema = z.object({
-  title: z.string().min(1, "Title is required"),
-  content: z.string().min(1, "Content is required"),
+  title: z.string().optional(),
+  content: z.string().optional(),
   pageOrder: z.number().min(1, "Page order must be at least 1"),
-  pageType: z.enum(["text", "image", "video", "ppt_slide"]).default("text"),
+  pageType: z.enum(["text", "image", "video", "ppt_slide"]),
 });
 
 type ModuleFormData = z.infer<typeof moduleSchema>;
@@ -41,38 +59,43 @@ interface ModuleEditorDialogProps {
 }
 
 export default function ModuleEditorDialog({ moduleId, children, onSuccess }: ModuleEditorDialogProps) {
+  const [open, setOpen] = useState(false);
+  const [editingPage, setEditingPage] = useState<ModulePage | null>(null);
+  const [newPage, setNewPage] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [open, setOpen] = useState(false);
-  const [editingPage, setEditingPage] = useState<number | null>(null);
-  const [newPage, setNewPage] = useState(false);
-
   const isEdit = !!moduleId;
 
-  // Fetch module data if editing
-  const { data: module } = useQuery({
+  // Fetch module data
+  const { data: module } = useQuery<TrainingModule>({
     queryKey: ["/api/modules", moduleId],
-    enabled: isEdit && open,
-    retry: false,
+    enabled: !!moduleId,
   });
 
-  // Fetch module pages if editing
-  const { data: pages = [] } = useQuery({
+  // Fetch sections
+  const { data: sections = [] } = useQuery<TrainingSection[]>({
+    queryKey: ["/api/sections"],
+  });
+
+  // Fetch pages
+  const { data: pages = [] } = useQuery<ModulePage[]>({
     queryKey: ["/api/modules", moduleId, "pages"],
-    enabled: isEdit && open,
-    retry: false,
+    enabled: !!moduleId,
   });
 
+  // Module form
   const moduleForm = useForm<ModuleFormData>({
     resolver: zodResolver(moduleSchema),
     defaultValues: {
       title: "",
       description: "",
       order: 1,
-      estimatedDuration: 30,
+      estimatedDuration: undefined,
+      sectionId: undefined,
     },
   });
 
+  // Page form
   const pageForm = useForm<PageFormData>({
     resolver: zodResolver(pageSchema),
     defaultValues: {
@@ -88,9 +111,10 @@ export default function ModuleEditorDialog({ moduleId, children, onSuccess }: Mo
     if (module) {
       moduleForm.reset({
         title: module.title,
-        description: module.description,
+        description: module.description || "",
         order: module.order,
-        estimatedDuration: module.estimatedDuration,
+        estimatedDuration: module.estimatedDuration || undefined,
+        sectionId: module.sectionId || undefined,
       });
     }
   }, [module, moduleForm]);
@@ -214,16 +238,18 @@ export default function ModuleEditorDialog({ moduleId, children, onSuccess }: Mo
   const handlePageSubmit = (data: PageFormData) => {
     const pageData = {
       ...data,
-      id: editingPage || undefined,
+      moduleId: moduleId!,
+      pageOrder: (pages.length || 0) + 1,
     };
     savePageMutation.mutate(pageData);
   };
 
-  const startEditingPage = (page: any) => {
-    setEditingPage(page.id);
+  const startEditingPage = (page: ModulePage) => {
+    setEditingPage(page);
+    setNewPage(false);
     pageForm.reset({
-      title: page.title,
-      content: page.content,
+      title: page.title || "",
+      content: page.content || "",
       pageOrder: page.pageOrder,
       pageType: page.pageType || "text",
     });
@@ -231,6 +257,7 @@ export default function ModuleEditorDialog({ moduleId, children, onSuccess }: Mo
 
   const startNewPage = () => {
     setNewPage(true);
+    setEditingPage(null);
     pageForm.reset({
       title: "",
       content: "",
@@ -245,34 +272,25 @@ export default function ModuleEditorDialog({ moduleId, children, onSuccess }: Mo
     pageForm.reset();
   };
 
+  const handleDeletePage = (pageId: number) => {
+    if (confirm("Are you sure you want to delete this page?")) {
+      deletePageMutation.mutate(pageId);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        {children || (
-          <Button variant="outline" size="sm">
-            <Edit className="h-4 w-4 mr-2" />
-            {isEdit ? "Edit Module" : "Create Module"}
-          </Button>
-        )}
+        {children || <Button>{isEdit ? "Edit Module" : "Create Module"}</Button>}
       </DialogTrigger>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{isEdit ? "Edit Module" : "Create Module"}</DialogTitle>
-          <DialogDescription>
-            {isEdit 
-              ? "Edit module details and manage pages for this training module."
-              : "Create a new training module with title, description, and pages."
-            }
-          </DialogDescription>
         </DialogHeader>
 
-        <Tabs defaultValue="module" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="module">Module Details</TabsTrigger>
-            <TabsTrigger value="pages" disabled={!isEdit}>Pages</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="module" className="space-y-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Module Form */}
+          <div className="space-y-4">
             <Form {...moduleForm}>
               <form onSubmit={moduleForm.handleSubmit(handleModuleSubmit)} className="space-y-4">
                 <FormField
@@ -282,7 +300,7 @@ export default function ModuleEditorDialog({ moduleId, children, onSuccess }: Mo
                     <FormItem>
                       <FormLabel>Title</FormLabel>
                       <FormControl>
-                        <Input placeholder="Enter module title" {...field} />
+                        <Input {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -296,7 +314,7 @@ export default function ModuleEditorDialog({ moduleId, children, onSuccess }: Mo
                     <FormItem>
                       <FormLabel>Description</FormLabel>
                       <FormControl>
-                        <Textarea placeholder="Enter module description" {...field} />
+                        <Textarea {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -311,7 +329,11 @@ export default function ModuleEditorDialog({ moduleId, children, onSuccess }: Mo
                       <FormItem>
                         <FormLabel>Order</FormLabel>
                         <FormControl>
-                          <Input type="number" {...field} onChange={(e) => field.onChange(Number(e.target.value))} />
+                          <Input
+                            type="number"
+                            {...field}
+                            onChange={(e) => field.onChange(parseInt(e.target.value))}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -325,7 +347,11 @@ export default function ModuleEditorDialog({ moduleId, children, onSuccess }: Mo
                       <FormItem>
                         <FormLabel>Duration (minutes)</FormLabel>
                         <FormControl>
-                          <Input type="number" {...field} onChange={(e) => field.onChange(Number(e.target.value))} />
+                          <Input
+                            type="number"
+                            {...field}
+                            onChange={(e) => field.onChange(parseInt(e.target.value) || undefined)}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -333,29 +359,55 @@ export default function ModuleEditorDialog({ moduleId, children, onSuccess }: Mo
                   />
                 </div>
 
+                <FormField
+                  control={moduleForm.control}
+                  name="sectionId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Section</FormLabel>
+                      <Select
+                        onValueChange={(value) => field.onChange(value ? parseInt(value) : undefined)}
+                        value={field.value?.toString() || ""}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a section" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {sections.map((section) => (
+                            <SelectItem key={section.id} value={section.id.toString()}>
+                              {section.title}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
                 <Button type="submit" disabled={updateModuleMutation.isPending}>
-                  {updateModuleMutation.isPending ? "Saving..." : (isEdit ? "Update Module" : "Create Module")}
+                  {updateModuleMutation.isPending ? "Saving..." : isEdit ? "Update Module" : "Create Module"}
                 </Button>
               </form>
             </Form>
-          </TabsContent>
+          </div>
 
-          <TabsContent value="pages" className="space-y-4">
-            <div className="flex justify-between items-center">
-              <h3 className="text-lg font-semibold">Module Pages</h3>
-              <Button onClick={startNewPage} disabled={newPage || editingPage !== null}>
-                <Plus className="h-4 w-4 mr-2" />
-                Add Page
-              </Button>
-            </div>
+          {/* Pages Management */}
+          {isEdit && (
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <h3 className="text-lg font-semibold">Pages</h3>
+                <Button onClick={startNewPage} size="sm">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Page
+                </Button>
+              </div>
 
-            {/* New Page Form */}
-            {newPage && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>New Page</CardTitle>
-                </CardHeader>
-                <CardContent>
+              {/* Page Form */}
+              {(editingPage || newPage) && (
+                <div className="border rounded-lg p-4 space-y-4">
                   <Form {...pageForm}>
                     <form onSubmit={pageForm.handleSubmit(handlePageSubmit)} className="space-y-4">
                       <FormField
@@ -365,8 +417,32 @@ export default function ModuleEditorDialog({ moduleId, children, onSuccess }: Mo
                           <FormItem>
                             <FormLabel>Page Title</FormLabel>
                             <FormControl>
-                              <Input placeholder="Enter page title" {...field} />
+                              <Input {...field} />
                             </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={pageForm.control}
+                        name="pageType"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Page Type</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value}>
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="text">Text</SelectItem>
+                                <SelectItem value="image">Image</SelectItem>
+                                <SelectItem value="video">Video</SelectItem>
+                                <SelectItem value="ppt_slide">PPT Slide</SelectItem>
+                              </SelectContent>
+                            </Select>
                             <FormMessage />
                           </FormItem>
                         )}
@@ -377,34 +453,16 @@ export default function ModuleEditorDialog({ moduleId, children, onSuccess }: Mo
                         name="content"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Page Content</FormLabel>
+                            <FormLabel>Content</FormLabel>
                             <FormControl>
-                              <Textarea 
-                                placeholder="Enter page content (supports HTML)" 
-                                {...field} 
-                                rows={6}
-                              />
+                              <Textarea {...field} rows={4} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
                         )}
                       />
 
-                      <FormField
-                        control={pageForm.control}
-                        name="pageOrder"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Page Order</FormLabel>
-                            <FormControl>
-                              <Input type="number" {...field} onChange={(e) => field.onChange(Number(e.target.value))} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <div className="flex gap-2">
+                      <div className="flex space-x-2">
                         <Button type="submit" disabled={savePageMutation.isPending}>
                           {savePageMutation.isPending ? "Saving..." : "Save Page"}
                         </Button>
@@ -414,112 +472,40 @@ export default function ModuleEditorDialog({ moduleId, children, onSuccess }: Mo
                       </div>
                     </form>
                   </Form>
-                </CardContent>
-              </Card>
-            )}
+                </div>
+              )}
 
-            {/* Existing Pages */}
-            <div className="space-y-4">
-              {pages.map((page: any) => (
-                <Card key={page.id}>
-                  <CardContent className="p-4">
-                    {editingPage === page.id ? (
-                      <Form {...pageForm}>
-                        <form onSubmit={pageForm.handleSubmit(handlePageSubmit)} className="space-y-4">
-                          <FormField
-                            control={pageForm.control}
-                            name="title"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Page Title</FormLabel>
-                                <FormControl>
-                                  <Input placeholder="Enter page title" {...field} />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-
-                          <FormField
-                            control={pageForm.control}
-                            name="content"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Page Content</FormLabel>
-                                <FormControl>
-                                  <Textarea 
-                                    placeholder="Enter page content (supports HTML)" 
-                                    {...field} 
-                                    rows={6}
-                                  />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-
-                          <FormField
-                            control={pageForm.control}
-                            name="pageOrder"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Page Order</FormLabel>
-                                <FormControl>
-                                  <Input type="number" {...field} onChange={(e) => field.onChange(Number(e.target.value))} />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-
-                          <div className="flex gap-2">
-                            <Button type="submit" disabled={savePageMutation.isPending}>
-                              {savePageMutation.isPending ? "Saving..." : "Save Changes"}
-                            </Button>
-                            <Button type="button" variant="outline" onClick={cancelPageEdit}>
-                              Cancel
-                            </Button>
-                          </div>
-                        </form>
-                      </Form>
-                    ) : (
-                      <div className="flex justify-between items-start">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2">
-                            <h4 className="font-medium">{page.title}</h4>
-                            <Badge variant="secondary">Page {page.pageOrder}</Badge>
-                          </div>
-                          <p className="text-sm text-gray-600 mb-2">
-                            {page.content.substring(0, 100)}...
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => startEditingPage(page)}
-                            disabled={editingPage !== null || newPage}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => deletePageMutation.mutate(page.id)}
-                            disabled={deletePageMutation.isPending}
-                            className="text-red-600 hover:text-red-700"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              ))}
+              {/* Pages List */}
+              <div className="space-y-2">
+                {pages.map((page: ModulePage) => (
+                  <div key={page.id} className="flex items-center justify-between p-3 border rounded-lg">
+                    <div>
+                      <p className="font-medium">{page.title || `Page ${page.pageOrder}`}</p>
+                      <p className="text-sm text-gray-500 capitalize">{page.pageType}</p>
+                    </div>
+                    <div className="flex space-x-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => startEditingPage(page)}
+                      >
+                        Edit
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDeletePage(page.id)}
+                        disabled={deletePageMutation.isPending}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
-          </TabsContent>
-        </Tabs>
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   );

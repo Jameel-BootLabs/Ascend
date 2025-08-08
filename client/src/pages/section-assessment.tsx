@@ -5,6 +5,11 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
+import type { 
+  TrainingSection, 
+  AssessmentQuestion, 
+  AssessmentResult 
+} from "@/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -13,7 +18,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { CheckCircle, XCircle, Clock, Award, AlertCircle } from "lucide-react";
 import { Link } from "wouter";
-import type { TrainingSection, AssessmentQuestion, AssessmentResult } from "@shared/schema";
+
 
 export default function SectionAssessment() {
   const [match, params] = useRoute("/assessment/section/:sectionId");
@@ -46,27 +51,27 @@ export default function SectionAssessment() {
   }, [isAuthenticated, isLoading, toast]);
 
   // Fetch section details
-  const { data: sections = [] } = useQuery({
+  const { data: sections = [] } = useQuery<TrainingSection[]>({
     queryKey: ["/api/sections"],
     retry: false,
   });
 
-  const section = sections.find(s => s.id === sectionId);
+  const section = sections.find((s: TrainingSection) => s.id === sectionId);
 
   // Fetch assessment questions for this section
-  const { data: questions = [], isLoading: questionsLoading } = useQuery({
+  const { data: questions = [], isLoading: questionsLoading } = useQuery<AssessmentQuestion[]>({
     queryKey: ["/api/sections", sectionId, "assessment", "questions"],
     retry: false,
     enabled: !!sectionId,
   });
 
   // Fetch existing assessment results
-  const { data: results = [] } = useQuery({
+  const { data: results = [] } = useQuery<AssessmentResult[]>({
     queryKey: ["/api/assessment/results"],
     retry: false,
   });
 
-  const existingResult = results.find(r => r.sectionId === sectionId);
+  const existingResult = results.find((r: AssessmentResult) => r.sectionId === sectionId);
 
   // Timer effect
   useEffect(() => {
@@ -150,7 +155,7 @@ export default function SectionAssessment() {
   const handleSubmitAssessment = () => {
     // Calculate score
     let correct = 0;
-    questions.forEach(question => {
+    questions.forEach((question: AssessmentQuestion) => {
       const selectedAnswer = answers[question.id];
       const correctAnswer = question.correctAnswer.toString();
       if (selectedAnswer === correctAnswer) {
@@ -173,7 +178,7 @@ export default function SectionAssessment() {
   };
 
   const currentQuestion = questions[currentQuestionIndex];
-  const allQuestionsAnswered = questions.every(q => answers[q.id]);
+  const allQuestionsAnswered = questions.every((q: AssessmentQuestion) => answers[q.id]);
   const progress = ((currentQuestionIndex + 1) / questions.length) * 100;
 
   // Show existing results if already completed and not retaking
@@ -192,7 +197,7 @@ export default function SectionAssessment() {
                 {existingResult.score}%
               </div>
               <div className="text-gray-600">
-                {existingResult.score >= 100 ? 'Passed' : 'Failed'}
+                {Number(existingResult.score) >= 100 ? 'Passed' : 'Failed'}
               </div>
             </div>
             
@@ -201,7 +206,7 @@ export default function SectionAssessment() {
                 {section.title} Assessment
               </h3>
               <p className="text-gray-600">
-                Completed on {new Date(existingResult.dateTaken).toLocaleDateString()}
+                Completed on {existingResult.dateTaken ? new Date(existingResult.dateTaken).toLocaleDateString() : 'N/A'}
               </p>
               <p className="text-gray-600 mt-2">
                 {existingResult.correctAnswers} out of {existingResult.totalQuestions} questions correct
@@ -209,35 +214,35 @@ export default function SectionAssessment() {
             </div>
             
             {/* Show wrong answers if not passed */}
-            {existingResult.score < 100 && (
+            {Number(existingResult.score) < 100 && (
               <div className="mb-6 text-left">
                 <h4 className="text-lg font-semibold text-red-600 mb-4">Questions to Review</h4>
                 <div className="space-y-4 max-h-96 overflow-y-auto">
                   {questions
-                    .filter(q => {
-                      const userAnswer = existingResult.answers[q.id.toString()];
+                    .filter((q: AssessmentQuestion) => {
+                      const userAnswer = (existingResult.answers as Record<string, string>)[q.id.toString()];
                       const correctAnswer = q.correctAnswer.toString();
                       // Handle both old format (text) and new format (index)
                       if (typeof userAnswer === 'string' && userAnswer.length > 1) {
                         // Old format: compare text with correct option
-                        return userAnswer !== q.options[parseInt(correctAnswer)];
+                        return userAnswer !== (q.options as string[])[parseInt(correctAnswer)];
                       } else {
                         // New format: compare indices
                         return userAnswer !== correctAnswer;
                       }
                     })
-                    .map((question, index) => {
-                      const userAnswer = existingResult.answers[question.id.toString()];
+                    .map((question: AssessmentQuestion, index: number) => {
+                      const userAnswer = (existingResult.answers as Record<string, string>)[question.id.toString()];
                       let userAnswerText, correctAnswerText;
                       
                       if (typeof userAnswer === 'string' && userAnswer.length > 1) {
                         // Old format: userAnswer is text
                         userAnswerText = userAnswer;
-                        correctAnswerText = question.options[parseInt(question.correctAnswer)];
+                        correctAnswerText = (question.options as string[])[parseInt(question.correctAnswer)];
                       } else {
                         // New format: userAnswer is index
-                        userAnswerText = question.options[parseInt(userAnswer)] || 'No answer';
-                        correctAnswerText = question.options[parseInt(question.correctAnswer)];
+                        userAnswerText = (question.options as string[])[parseInt(userAnswer)] || 'No answer';
+                        correctAnswerText = (question.options as string[])[parseInt(question.correctAnswer)];
                       }
                       
                       return (
@@ -267,7 +272,7 @@ export default function SectionAssessment() {
                 </Button>
               </Link>
               
-              {existingResult.score >= 100 && (
+              {Number(existingResult.score) >= 100 && (
                 <Button 
                   onClick={() => window.open(`/api/certificate/${existingResult.id}`, '_blank')}
                   className="w-full bg-green-600 text-white hover:bg-green-700"
@@ -276,7 +281,7 @@ export default function SectionAssessment() {
                 </Button>
               )}
               
-              {existingResult.score < 100 && (
+              {Number(existingResult.score) < 100 && (
                 <Button 
                   onClick={() => {
                     setIsRetaking(true);
@@ -333,7 +338,7 @@ export default function SectionAssessment() {
                 {section.title} Assessment
               </h3>
               <p className="text-gray-600">
-                {questions.filter(q => answers[q.id] === q.correctAnswer.toString()).length} out of {questions.length} questions correct
+                {questions.filter((q: AssessmentQuestion) => answers[q.id] === q.correctAnswer.toString()).length} out of {questions.length} questions correct
               </p>
             </div>
             
@@ -343,18 +348,18 @@ export default function SectionAssessment() {
                 <h4 className="text-lg font-semibold text-red-600 mb-4">Questions to Review</h4>
                 <div className="space-y-4 max-h-96 overflow-y-auto">
                   {questions
-                    .filter(q => answers[q.id] !== q.correctAnswer)
-                    .map((question, index) => (
+                                          .filter((q: AssessmentQuestion) => answers[q.id] !== q.correctAnswer)
+                    .map((question: AssessmentQuestion, index: number) => (
                     <div key={question.id} className="bg-red-50 p-4 rounded-lg border border-red-200">
                       <h5 className="font-medium text-gray-900 mb-2">
                         Question {questions.indexOf(question) + 1}: {question.question}
                       </h5>
                       <div className="space-y-2 text-sm">
                         <div className="text-red-600">
-                          <strong>Your answer:</strong> {question.options[answers[question.id].charCodeAt(0) - 97]}
+                          <strong>Your answer:</strong> {(question.options as string[])[answers[question.id].charCodeAt(0) - 97]}
                         </div>
                         <div className="text-green-600">
-                          <strong>Correct answer:</strong> {question.options[question.correctAnswer.charCodeAt(0) - 97]}
+                          <strong>Correct answer:</strong> {(question.options as string[])[question.correctAnswer.charCodeAt(0) - 97]}
                         </div>
                       </div>
                     </div>
@@ -436,7 +441,7 @@ export default function SectionAssessment() {
               onValueChange={(value) => handleAnswerChange(currentQuestion.id, value)}
               className="space-y-4"
             >
-              {currentQuestion.options.map((option, index) => (
+              {(currentQuestion.options as string[]).map((option: string, index: number) => (
                 <div key={index} className="flex items-center space-x-2">
                   <RadioGroupItem value={String.fromCharCode(97 + index)} id={`option-${index}`} />
                   <Label htmlFor={`option-${index}`} className="text-gray-700 cursor-pointer">
@@ -460,7 +465,7 @@ export default function SectionAssessment() {
         </Button>
         
         <div className="text-sm text-gray-600">
-          {questions.filter(q => answers[q.id]).length} of {questions.length} answered
+          {questions.filter((q: AssessmentQuestion) => answers[q.id]).length} of {questions.length} answered
         </div>
         
         {currentQuestionIndex === questions.length - 1 ? (
