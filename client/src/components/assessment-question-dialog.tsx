@@ -38,6 +38,7 @@ interface AssessmentQuestionDialogProps {
   sections: Array<{ id: number; title: string }>;
   mode: "create" | "edit";
   trigger?: React.ReactNode;
+  existingQuestions?: AssessmentQuestion[]; // Add this prop to get existing questions for order calculation
 }
 
 export default function AssessmentQuestionDialog({
@@ -45,6 +46,7 @@ export default function AssessmentQuestionDialog({
   sections,
   mode,
   trigger,
+  existingQuestions = [], // Default to empty array
 }: AssessmentQuestionDialogProps) {
   const [open, setOpen] = useState(false);
   const [formData, setFormData] = useState({
@@ -57,25 +59,87 @@ export default function AssessmentQuestionDialog({
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  useEffect(() => {
-    if (question && mode === "edit") {
-      setFormData({
-        question: question.question,
-        options: [...question.options],
-        correctAnswer: question.correctAnswer,
-        sectionId: question.sectionId,
-        order: question.order,
-      });
-    } else {
-      setFormData({
-        question: "",
-        options: ["", "", "", ""],
-        correctAnswer: "",
-        sectionId: sections[0]?.id || 0,
-        order: 1,
-      });
+  // Calculate next available order for a section
+  const getNextOrder = (sectionId: number) => {
+    const sectionQuestions = existingQuestions.filter(q => q.sectionId === sectionId);
+    if (sectionQuestions.length === 0) return 1;
+    
+    // Get all existing orders and sort them
+    const existingOrders = sectionQuestions.map(q => q.order).sort((a, b) => a - b);
+    
+    // Find the first gap in the sequence, or use the next number after the highest
+    let nextOrder = 1;
+    for (const order of existingOrders) {
+      if (order === nextOrder) {
+        nextOrder++;
+      } else {
+        break; // Found a gap, use this number
+      }
     }
-  }, [question, mode, sections]);
+    
+    return nextOrder;
+  };
+
+  // Reset form function
+  const resetForm = () => {
+    const selectedSectionId = sections.length > 0 ? sections[0].id : 0;
+    setFormData({
+      question: "",
+      options: ["", "", "", ""],
+      correctAnswer: "",
+      sectionId: selectedSectionId,
+      order: getNextOrder(selectedSectionId),
+    });
+  };
+
+  // Update order when section changes
+  const handleSectionChange = (sectionId: number) => {
+    setFormData(prev => ({
+      ...prev,
+      sectionId,
+      order: getNextOrder(sectionId),
+    }));
+  };
+
+  // Log order calculation for debugging
+  useEffect(() => {
+    if (open && mode === "create") {
+      console.log(`Calculating order for section ${formData.sectionId}:`, getNextOrder(formData.sectionId));
+    }
+  }, [open, mode, formData.sectionId]);
+
+  // Reset form when dialog opens/closes
+  useEffect(() => {
+    if (open) {
+      if (question && mode === "edit") {
+        setFormData({
+          question: question.question,
+          options: [...question.options],
+          correctAnswer: question.correctAnswer,
+          sectionId: question.sectionId,
+          order: question.order,
+        });
+      } else {
+        resetForm();
+      }
+    } else {
+      // Reset form when dialog closes
+      resetForm();
+    }
+  }, [open, question, mode, sections]);
+
+  // Don't allow opening dialog if no sections are available
+  const handleOpenChange = (newOpen: boolean) => {
+    if (newOpen && sections.length === 0) {
+      toast({
+        title: "Error",
+        description: "No sections available. Please create a section first.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setOpen(newOpen);
+  };
 
   const createQuestionMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
@@ -86,7 +150,10 @@ export default function AssessmentQuestionDialog({
         title: "Success",
         description: "Assessment question created successfully",
       });
+      // Invalidate both sections and assessment questions queries
       queryClient.invalidateQueries({ queryKey: ["/api/sections"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/assessment/questions"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/sections", "assessment", "questions"] });
       setOpen(false);
     },
     onError: (error) => {
@@ -107,7 +174,10 @@ export default function AssessmentQuestionDialog({
         title: "Success",
         description: "Assessment question updated successfully",
       });
+      // Invalidate both sections and assessment questions queries
       queryClient.invalidateQueries({ queryKey: ["/api/sections"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/assessment/questions"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/sections", "assessment", "questions"] });
       setOpen(false);
     },
     onError: (error) => {
@@ -174,7 +244,7 @@ export default function AssessmentQuestionDialog({
   );
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         {trigger || defaultTrigger}
       </DialogTrigger>
@@ -192,98 +262,111 @@ export default function AssessmentQuestionDialog({
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="space-y-2">
-            <Label htmlFor="section">Section</Label>
-            <Select
-              value={formData.sectionId.toString()}
-              onValueChange={(value) => setFormData({ ...formData, sectionId: parseInt(value) })}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select a section" />
-              </SelectTrigger>
-              <SelectContent>
-                {sections.map((section) => (
-                  <SelectItem key={section.id} value={section.id.toString()}>
-                    {section.title}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          {sections.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              <p>No sections available. Please create a section first.</p>
+            </div>
+          ) : (
+            <>
+              <div className="space-y-2">
+                <Label htmlFor="section">Section</Label>
+                <Select
+                  value={formData.sectionId.toString()}
+                  onValueChange={(value) => handleSectionChange(parseInt(value))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a section" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {sections.map((section) => (
+                      <SelectItem key={section.id} value={section.id.toString()}>
+                        {section.title}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="question">Question</Label>
-            <Textarea
-              id="question"
-              value={formData.question}
-              onChange={(e) => setFormData({ ...formData, question: e.target.value })}
-              placeholder="Enter the assessment question..."
-              rows={3}
-            />
-          </div>
-
-          <div className="space-y-4">
-            <Label>Answer Options</Label>
-            {formData.options.map((option, index) => (
-              <div key={index} className="flex items-center space-x-2">
-                <Label className="w-8 text-sm font-medium">
-                  {String.fromCharCode(97 + index)}.
-                </Label>
-                <Input
-                  value={option}
-                  onChange={(e) => handleOptionChange(index, e.target.value)}
-                  placeholder={`Option ${index + 1}`}
+              <div className="space-y-2">
+                <Label htmlFor="question">Question</Label>
+                <Textarea
+                  id="question"
+                  value={formData.question}
+                  onChange={(e) => setFormData({ ...formData, question: e.target.value })}
+                  placeholder="Enter the assessment question..."
+                  rows={3}
                 />
               </div>
-            ))}
-          </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="correctAnswer">Correct Answer</Label>
-            <Select
-              value={formData.correctAnswer}
-              onValueChange={(value) => setFormData({ ...formData, correctAnswer: value })}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select the correct answer" />
-              </SelectTrigger>
-              <SelectContent>
+              <div className="space-y-4">
+                <Label>Answer Options</Label>
                 {formData.options.map((option, index) => (
-                  <SelectItem key={index} value={String.fromCharCode(97 + index)}>
-                    {String.fromCharCode(97 + index)}. {option}
-                  </SelectItem>
+                  <div key={index} className="flex items-center space-x-2">
+                    <Label className="w-8 text-sm font-medium">
+                      {String.fromCharCode(97 + index)}.
+                    </Label>
+                    <Input
+                      value={option}
+                      onChange={(e) => handleOptionChange(index, e.target.value)}
+                      placeholder={`Option ${index + 1}`}
+                    />
+                  </div>
                 ))}
-              </SelectContent>
-            </Select>
-          </div>
+              </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="order">Order</Label>
-            <Input
-              id="order"
-              type="number"
-              value={formData.order}
-              onChange={(e) => setFormData({ ...formData, order: parseInt(e.target.value) })}
-              min="1"
-            />
-          </div>
+              <div className="space-y-2">
+                <Label htmlFor="correctAnswer">Correct Answer</Label>
+                <Select
+                  value={formData.correctAnswer}
+                  onValueChange={(value) => setFormData({ ...formData, correctAnswer: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select the correct answer" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {formData.options.map((option, index) => (
+                      <SelectItem key={index} value={String.fromCharCode(97 + index)}>
+                        {String.fromCharCode(97 + index)}. {option}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-              Cancel
-            </Button>
-            <Button 
-              type="submit" 
-              disabled={createQuestionMutation.isPending || updateQuestionMutation.isPending}
-            >
-              {createQuestionMutation.isPending || updateQuestionMutation.isPending
-                ? "Saving..."
-                : mode === "create" 
-                  ? "Create Question" 
-                  : "Update Question"
-              }
-            </Button>
-          </DialogFooter>
+              <div className="space-y-2">
+                <Label htmlFor="order">Order</Label>
+                <Input
+                  id="order"
+                  type="number"
+                  value={formData.order}
+                  onChange={(e) => setFormData({ ...formData, order: parseInt(e.target.value) })}
+                  min="1"
+                />
+                {mode === "create" && (
+                  <p className="text-sm text-gray-500">
+                    This question will be displayed as "Question {formData.order}" in the assessment.
+                  </p>
+                )}
+              </div>
+
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+                  Cancel
+                </Button>
+                <Button 
+                  type="submit" 
+                  disabled={createQuestionMutation.isPending || updateQuestionMutation.isPending || sections.length === 0}
+                >
+                  {createQuestionMutation.isPending || updateQuestionMutation.isPending
+                    ? "Saving..."
+                    : mode === "create" 
+                      ? "Create Question" 
+                      : "Update Question"
+                  }
+                </Button>
+              </DialogFooter>
+            </>
+          )}
         </form>
       </DialogContent>
     </Dialog>

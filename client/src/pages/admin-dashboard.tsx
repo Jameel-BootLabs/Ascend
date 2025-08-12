@@ -1,29 +1,7 @@
-import { useEffect, useState } from "react";
-import { useAuth } from "@/hooks/useAuth";
-import { useToast } from "@/hooks/use-toast";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from "@/components/ui/select";
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
-} from "@/components/ui/table";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { 
+import AssessmentQuestionDialog from "@/components/assessment-question-dialog";
+import ModuleEditorDialog from "@/components/module-editor-dialog";
+import SectionDialog from "@/components/section-dialog";
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -34,27 +12,47 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
+} from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { apiRequest } from "@/lib/queryClient";
-import { Progress } from "@/components/ui/progress";
-import SectionDialog from "@/components/section-dialog";
-import { 
-  BarChart, 
-  Edit, 
-  Search, 
-  Download, 
-  Plus, 
-  Trash2, 
-  GripVertical,
-  Shield,
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  BarChart,
   Database,
-  Wifi,
+  Download,
+  Edit,
+  GripVertical,
+  HelpCircle,
+  Plus,
   RotateCcw,
-  FolderOpen,
-  HelpCircle
+  Search,
+  Shield,
+  Trash2,
+  Wifi
 } from "lucide-react";
-import ModuleEditorDialog from "@/components/module-editor-dialog";
-import AssessmentQuestionDialog from "@/components/assessment-question-dialog";
+import { useEffect, useState } from "react";
 
 export default function AdminDashboard() {
   const { user, isAuthenticated, isLoading } = useAuth();
@@ -233,7 +231,10 @@ export default function AdminDashboard() {
       await apiRequest("DELETE", `/api/assessment/questions/${questionId}`);
     },
     onSuccess: () => {
+      // Invalidate all related assessment question queries
       queryClient.invalidateQueries({ queryKey: ["/api/admin/assessment/questions"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/sections"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/sections", "assessment", "questions"] });
       toast({
         title: "Success",
         description: "Assessment question deleted successfully",
@@ -905,6 +906,7 @@ export default function AdminDashboard() {
               <AssessmentQuestionDialog 
                 sections={sections}
                 mode="create"
+                existingQuestions={assessmentQuestions}
               />
             </div>
 
@@ -961,6 +963,7 @@ export default function AdminDashboard() {
                                     question={question}
                                     sections={sections}
                                     mode="edit"
+                                    existingQuestions={assessmentQuestions}
                                   />
                                   <AlertDialog>
                                     <AlertDialogTrigger asChild>
