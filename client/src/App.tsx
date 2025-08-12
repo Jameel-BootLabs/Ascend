@@ -11,6 +11,7 @@ import TrainingModule from "@/pages/training-module";
 
 import SectionAssessment from "@/pages/section-assessment";
 import AdminDashboard from "@/pages/admin-dashboard";
+import UserManager from "@/pages/user-manager";
 import Navbar from "@/components/navbar";
 
 function Router() {
@@ -37,6 +38,7 @@ function Router() {
 
             <Route path="/assessment/section/:sectionId" component={SectionAssessment} />
             <Route path="/admin" component={AdminDashboard} />
+            <Route path="/admin/users" component={UserManager} />
           </>
         )}
         <Route component={NotFound} />
