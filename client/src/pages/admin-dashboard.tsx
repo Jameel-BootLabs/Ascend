@@ -166,14 +166,16 @@ export default function AdminDashboard() {
   });
 
   const updateModuleSectionMutation = useMutation({
-    mutationFn: async ({ moduleId, sectionId }: { moduleId: number; sectionId: number }) => {
+    mutationFn: async ({ moduleId, sectionId }: { moduleId: number; sectionId: number | null }) => {
       await apiRequest("PUT", `/api/modules/${moduleId}/section`, { sectionId });
     },
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["/api/modules"] });
+      const action = variables.sectionId === null ? "unassigned from" : "assigned to";
+      const sectionName = variables.sectionId === null ? "any section" : "the selected section";
       toast({
         title: "Success",
-        description: "Module section updated successfully",
+        description: `Module ${action} ${sectionName} successfully`,
       });
     },
     onError: (error) => {
@@ -840,24 +842,57 @@ export default function AdminDashboard() {
                             {getModulesBySection(section.id).map((module) => (
                               <div key={module.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
                                 <span className="text-sm">{module.title}</span>
-                                <Select 
-                                  value={module.sectionId.toString()}
-                                  onValueChange={(value) => {
-                                    const newSectionId = parseInt(value);
-                                    updateModuleSectionMutation.mutate({ moduleId: module.id, sectionId: newSectionId });
-                                  }}
-                                >
-                                  <SelectTrigger className="w-40">
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {sections.map((s) => (
-                                      <SelectItem key={s.id} value={s.id.toString()}>
-                                        {s.title}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
+                                <div className="flex items-center space-x-2">
+                                  <Select 
+                                    value={module.sectionId.toString()}
+                                    onValueChange={(value) => {
+                                      const newSectionId = parseInt(value);
+                                      updateModuleSectionMutation.mutate({ moduleId: module.id, sectionId: newSectionId });
+                                    }}
+                                    disabled={updateModuleSectionMutation.isPending}
+                                  >
+                                    <SelectTrigger className="w-40">
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {sections.map((s) => (
+                                        <SelectItem key={s.id} value={s.id.toString()}>
+                                          {s.title}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                  <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="text-orange-600 hover:text-orange-700"
+                                        disabled={updateModuleSectionMutation.isPending}
+                                      >
+                                        {updateModuleSectionMutation.isPending ? "Unassigning..." : "Unassign"}
+                                      </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                      <AlertDialogHeader>
+                                        <AlertDialogTitle>Unassign Module</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                          Are you sure you want to unassign "{module.title}" from this section? 
+                                          The module will become unassigned and won't appear in any section until reassigned.
+                                        </AlertDialogDescription>
+                                      </AlertDialogHeader>
+                                      <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                        <AlertDialogAction
+                                          onClick={() => updateModuleSectionMutation.mutate({ moduleId: module.id, sectionId: null })}
+                                          className="bg-orange-600 hover:bg-orange-700"
+                                        >
+                                          Unassign Module
+                                        </AlertDialogAction>
+                                      </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                  </AlertDialog>
+                                </div>
                               </div>
                             ))}
                           </div>
@@ -869,24 +904,28 @@ export default function AdminDashboard() {
                             {modules.filter(m => !m.sectionId).map((module) => (
                               <div key={module.id} className="flex items-center justify-between p-2 bg-yellow-50 rounded">
                                 <span className="text-sm">{module.title}</span>
-                                <Select 
-                                  value=""
-                                  onValueChange={(value) => {
-                                    const newSectionId = parseInt(value);
-                                    updateModuleSectionMutation.mutate({ moduleId: module.id, sectionId: newSectionId });
-                                  }}
-                                >
-                                  <SelectTrigger className="w-40">
-                                    <SelectValue placeholder="Assign to section" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {sections.map((s) => (
-                                      <SelectItem key={s.id} value={s.id.toString()}>
-                                        {s.title}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
+                                <div className="flex items-center space-x-2">
+                                  <Select 
+                                    value=""
+                                    onValueChange={(value) => {
+                                      const newSectionId = parseInt(value);
+                                      updateModuleSectionMutation.mutate({ moduleId: module.id, sectionId: newSectionId });
+                                    }}
+                                    disabled={updateModuleSectionMutation.isPending}
+                                  >
+                                    <SelectTrigger className="w-40">
+                                      <SelectValue placeholder="Assign to section" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {sections.map((s) => (
+                                        <SelectItem key={s.id} value={s.id.toString()}>
+                                          {s.title}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                  <span className="text-xs text-gray-500 px-2">Already unassigned</span>
+                                </div>
                               </div>
                             ))}
                           </div>
