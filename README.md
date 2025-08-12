@@ -27,6 +27,125 @@ An information security training portal built with React, Express.js, and Postgr
 - Multer for file uploads
 - Express Session with PostgreSQL storage
 
+## Database Management
+
+This application uses **Drizzle ORM** with **PostgreSQL** for data persistence. The database schema is defined in `shared/schema.ts` and managed through migrations.
+
+### Database Schema
+
+The application includes the following main tables:
+
+- **`users`** - User accounts and authentication data
+- **`training_sections`** - Training content sections
+- **`training_modules`** - Individual training modules within sections
+- **`module_pages`** - Content pages within modules
+- **`employee_progress`** - User progress tracking
+- **`assessment_questions`** - Quiz questions for assessments
+- **`assessment_results`** - User assessment results and scores
+- **`sessions`** - User session management
+
+### Database Commands
+
+#### Development Environment
+
+```bash
+# Generate migration files from schema changes
+npm run db:generate
+
+# Apply pending migrations to database
+npm run db:migrate
+
+# Check if database schema matches current schema definition
+npm run db:check
+
+# Push schema changes directly (development only)
+npm run db:push
+
+# Open Drizzle Studio for database management
+npm run db:studio
+```
+
+#### Production Environment
+
+```bash
+# Generate migrations (same as dev)
+npm run db:generate
+
+# Apply migrations to production database
+NODE_ENV=production npm run db:migrate
+
+# Verify production schema
+NODE_ENV=production npm run db:check
+```
+
+### Schema Changes Workflow
+
+When making changes to the database schema:
+
+1. **Modify `shared/schema.ts`** with your changes
+2. **Generate migration files:**
+   ```bash
+   npm run db:generate
+   ```
+3. **Review generated files** in `migrations/` folder
+4. **Apply to development:**
+   ```bash
+   npm run db:migrate
+   ```
+5. **Test your application** thoroughly
+6. **Apply to production:**
+   ```bash
+   NODE_ENV=production npm run db:migrate
+   ```
+
+### Database Connection
+
+The application connects to PostgreSQL using the `DATABASE_URL` environment variable:
+
+```env
+DATABASE_URL="postgresql://username:password@host:port/database_name"
+```
+
+### Migration Files
+
+Migration files are stored in the `migrations/` directory and follow the naming convention:
+- `0000_initial_migration.sql`
+- `0001_add_new_table.sql`
+- etc.
+
+**Important:** Never manually edit migration files after they've been applied to production.
+
+### Database Backup and Restore
+
+#### Backup
+```bash
+pg_dump -h hostname -U username -d database_name > backup.sql
+```
+
+#### Restore
+```bash
+psql -h hostname -U username -d database_name < backup.sql
+```
+
+### Troubleshooting Database Issues
+
+1. **Migration Errors:**
+   - Check database connection and permissions
+   - Verify DATABASE_URL format
+   - Ensure database exists and is accessible
+
+2. **Schema Mismatch:**
+   - Run `npm run db:check` to identify differences
+   - Generate and apply new migrations as needed
+
+3. **Foreign Key Violations:**
+   - Check data integrity before running migrations
+   - Verify referential constraints in schema
+
+4. **Permission Issues:**
+   - Ensure database user has necessary privileges
+   - Grant required permissions on database and schema
+
 ## Local Development Setup
 
 ### Prerequisites
@@ -162,11 +281,18 @@ The application is compatible with:
 
 ## Scripts
 
+### Application
 - `npm run dev` - Start development server
 - `npm run build` - Build for production
 - `npm start` - Start production server
 - `npm run check` - Type checking
-- `npm run db:push` - Push database schema changes
+
+### Database Management
+- `npm run db:generate` - Generate migration files from schema changes
+- `npm run db:migrate` - Apply pending migrations to database
+- `npm run db:push` - Push schema changes directly (development only)
+- `npm run db:studio` - Open Drizzle Studio for database management
+- `npm run db:check` - Check if database schema matches current definition
 
 ## Authentication
 

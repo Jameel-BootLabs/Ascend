@@ -152,12 +152,35 @@ export const employeeProgressRelations = relations(employeeProgress, ({ one }) =
     fields: [employeeProgress.moduleId],
     references: [trainingModules.id],
   }),
+  lastViewedPage: one(modulePages, {
+    fields: [employeeProgress.lastViewedPageId],
+    references: [modulePages.id],
+  }),
+}));
+
+export const assessmentQuestionsRelations = relations(assessmentQuestions, ({ one }) => ({
+  module: one(trainingModules, {
+    fields: [assessmentQuestions.moduleId],
+    references: [trainingModules.id],
+  }),
+  section: one(trainingSections, {
+    fields: [assessmentQuestions.sectionId],
+    references: [trainingSections.id],
+  }),
 }));
 
 export const assessmentResultsRelations = relations(assessmentResults, ({ one }) => ({
   user: one(users, {
     fields: [assessmentResults.userId],
     references: [users.id],
+  }),
+  module: one(trainingModules, {
+    fields: [assessmentResults.moduleId],
+    references: [trainingModules.id],
+  }),
+  section: one(trainingSections, {
+    fields: [assessmentResults.sectionId],
+    references: [trainingSections.id],
   }),
 }));
 
