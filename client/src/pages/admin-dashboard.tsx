@@ -944,6 +944,7 @@ export default function AdminDashboard() {
               <h2 className="text-xl font-semibold text-gray-900">Assessment Questions Management</h2>
               <AssessmentQuestionDialog 
                 sections={sections}
+                modules={modules}
                 mode="create"
                 existingQuestions={assessmentQuestions}
               />
@@ -1001,6 +1002,7 @@ export default function AdminDashboard() {
                                   <AssessmentQuestionDialog
                                     question={question}
                                     sections={sections}
+                                    modules={modules}
                                     mode="edit"
                                     existingQuestions={assessmentQuestions}
                                   />

@@ -29,6 +29,7 @@ interface AssessmentQuestion {
   question: string;
   options: string[];
   correctAnswer: string;
+  moduleId: number; // Add moduleId field
   sectionId: number;
   order: number;
 }
@@ -36,6 +37,7 @@ interface AssessmentQuestion {
 interface AssessmentQuestionDialogProps {
   question?: AssessmentQuestion;
   sections: Array<{ id: number; title: string }>;
+  modules: Array<{ id: number; title: string; sectionId: number }>; // Add modules prop
   mode: "create" | "edit";
   trigger?: React.ReactNode;
   existingQuestions?: AssessmentQuestion[]; // Add this prop to get existing questions for order calculation
@@ -44,6 +46,7 @@ interface AssessmentQuestionDialogProps {
 export default function AssessmentQuestionDialog({
   question,
   sections,
+  modules, // Add modules parameter
   mode,
   trigger,
   existingQuestions = [], // Default to empty array
@@ -53,19 +56,20 @@ export default function AssessmentQuestionDialog({
     question: "",
     options: ["", "", "", ""],
     correctAnswer: "",
+    moduleId: 0, // Add moduleId to form data
     sectionId: 0,
     order: 1,
   });
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Calculate next available order for a section
-  const getNextOrder = (sectionId: number) => {
-    const sectionQuestions = existingQuestions.filter(q => q.sectionId === sectionId);
-    if (sectionQuestions.length === 0) return 1;
+  // Calculate next available order for a module
+  const getNextOrder = (moduleId: number) => {
+    const moduleQuestions = existingQuestions.filter(q => q.moduleId === moduleId);
+    if (moduleQuestions.length === 0) return 1;
     
     // Get all existing orders and sort them
-    const existingOrders = sectionQuestions.map(q => q.order).sort((a, b) => a - b);
+    const existingOrders = moduleQuestions.map(q => q.order).sort((a, b) => a - b);
     
     // Find the first gap in the sequence, or use the next number after the highest
     let nextOrder = 1;
@@ -82,31 +86,35 @@ export default function AssessmentQuestionDialog({
 
   // Reset form function
   const resetForm = () => {
+    const selectedModuleId = modules.length > 0 ? modules[0].id : 0;
     const selectedSectionId = sections.length > 0 ? sections[0].id : 0;
     setFormData({
       question: "",
       options: ["", "", "", ""],
       correctAnswer: "",
+      moduleId: selectedModuleId,
       sectionId: selectedSectionId,
-      order: getNextOrder(selectedSectionId),
+      order: getNextOrder(selectedModuleId),
     });
   };
 
-  // Update order when section changes
-  const handleSectionChange = (sectionId: number) => {
+  // Update order when module changes
+  const handleModuleChange = (moduleId: number) => {
+    const module = modules.find(m => m.id === moduleId);
     setFormData(prev => ({
       ...prev,
-      sectionId,
-      order: getNextOrder(sectionId),
+      moduleId,
+      sectionId: module?.sectionId || prev.sectionId,
+      order: getNextOrder(moduleId),
     }));
   };
 
   // Log order calculation for debugging
   useEffect(() => {
     if (open && mode === "create") {
-      console.log(`Calculating order for section ${formData.sectionId}:`, getNextOrder(formData.sectionId));
+      console.log(`Calculating order for module ${formData.moduleId}:`, getNextOrder(formData.moduleId));
     }
-  }, [open, mode, formData.sectionId]);
+  }, [open, mode, formData.moduleId]);
 
   // Reset form when dialog opens/closes
   useEffect(() => {
@@ -116,6 +124,7 @@ export default function AssessmentQuestionDialog({
           question: question.question,
           options: [...question.options],
           correctAnswer: question.correctAnswer,
+          moduleId: question.moduleId, // Set moduleId for edit mode
           sectionId: question.sectionId,
           order: question.order,
         });
@@ -126,14 +135,14 @@ export default function AssessmentQuestionDialog({
       // Reset form when dialog closes
       resetForm();
     }
-  }, [open, question, mode, sections]);
+  }, [open, question, mode, sections, modules]);
 
-  // Don't allow opening dialog if no sections are available
+  // Don't allow opening dialog if no modules or sections are available
   const handleOpenChange = (newOpen: boolean) => {
-    if (newOpen && sections.length === 0) {
+    if (newOpen && (modules.length === 0 || sections.length === 0)) {
       toast({
         title: "Error",
-        description: "No sections available. Please create a section first.",
+        description: "No modules or sections available. Please create modules and sections first.",
         variant: "destructive",
       });
       return;
@@ -219,6 +228,15 @@ export default function AssessmentQuestionDialog({
       return;
     }
 
+    if (!formData.moduleId) {
+      toast({
+        title: "Error",
+        description: "Please select a module",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (mode === "create") {
       createQuestionMutation.mutate(formData);
     } else {
@@ -248,7 +266,7 @@ export default function AssessmentQuestionDialog({
       <DialogTrigger asChild>
         {trigger || defaultTrigger}
       </DialogTrigger>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-2xl max-h-[70vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {mode === "create" ? "Create Assessment Question" : "Edit Assessment Question"}
@@ -262,29 +280,53 @@ export default function AssessmentQuestionDialog({
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {sections.length === 0 ? (
+          {sections.length === 0 || modules.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
-              <p>No sections available. Please create a section first.</p>
+              <p>No sections or modules available. Please create sections and modules first.</p>
             </div>
           ) : (
             <>
-              <div className="space-y-2">
-                <Label htmlFor="section">Section</Label>
-                <Select
-                  value={formData.sectionId.toString()}
-                  onValueChange={(value) => handleSectionChange(parseInt(value))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a section" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {sections.map((section) => (
-                      <SelectItem key={section.id} value={section.id.toString()}>
-                        {section.title}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="section">Section</Label>
+                  <Select
+                    value={formData.sectionId.toString()}
+                    disabled={true} // Section is determined by the selected module
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Section will be set automatically" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {sections.map((section) => (
+                        <SelectItem key={section.id} value={section.id.toString()}>
+                          {section.title}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-sm text-gray-500">
+                    Section is automatically determined by the selected module.
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="module">Module</Label>
+                  <Select
+                    value={formData.moduleId.toString()}
+                    onValueChange={(value) => handleModuleChange(parseInt(value))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a module" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {modules.map((module) => (
+                        <SelectItem key={module.id} value={module.id.toString()}>
+                          {module.title}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
               <div className="space-y-2">
@@ -344,7 +386,7 @@ export default function AssessmentQuestionDialog({
                 />
                 {mode === "create" && (
                   <p className="text-sm text-gray-500">
-                    This question will be displayed as "Question {formData.order}" in the assessment.
+                    This question will be displayed as "Question {formData.order}" in the module assessment.
                   </p>
                 )}
               </div>
@@ -355,7 +397,7 @@ export default function AssessmentQuestionDialog({
                 </Button>
                 <Button 
                   type="submit" 
-                  disabled={createQuestionMutation.isPending || updateQuestionMutation.isPending || sections.length === 0}
+                  disabled={createQuestionMutation.isPending || updateQuestionMutation.isPending || sections.length === 0 || modules.length === 0}
                 >
                   {createQuestionMutation.isPending || updateQuestionMutation.isPending
                     ? "Saving..."
