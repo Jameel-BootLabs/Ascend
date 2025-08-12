@@ -248,24 +248,52 @@ export default function EmployeeDashboard() {
                   </div>
                   
                   {/* Section Assessment */}
-                  <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+                  <div className={`mt-4 p-3 rounded-lg border ${
+                    sectionProgress >= 100 
+                      ? 'bg-green-50 border-green-200' 
+                      : 'bg-gray-50 border-gray-200'
+                  }`}>
                     <div className="flex items-center justify-between">
                       <div>
-                        <h4 className="font-medium text-gray-900 text-sm">Section Assessment</h4>
-                        <p className="text-xs text-gray-600">
-                          Complete all modules to unlock the section assessment
+                        <h4 className={`font-medium text-sm ${
+                          sectionProgress >= 100 ? 'text-green-900' : 'text-gray-900'
+                        }`}>
+                          Section Assessment
+                          {sectionProgress >= 100 && (
+                            <span className="ml-2 text-xs bg-green-200 text-green-800 px-2 py-1 rounded-full">
+                              Unlocked
+                            </span>
+                          )}
+                        </h4>
+                        <p className={`text-xs ${
+                          sectionProgress >= 100 ? 'text-green-700' : 'text-gray-600'
+                        }`}>
+                          {sectionProgress >= 100 
+                            ? 'All modules completed! You can now take the assessment.'
+                            : `Complete all modules to unlock the section assessment (${sectionProgress}% complete)`
+                          }
                         </p>
                       </div>
-                      <Link href={`/assessment/section/${section.id}`}>
+                      {sectionProgress >= 100 ? (
+                        <Link href={`/assessment/section/${section.id}`}>
+                          <Button 
+                            size="sm"
+                            className="bg-secondary text-white hover:bg-green-600 transition-colors text-xs py-1"
+                          >
+                            <UserCheck className="mr-1 h-3 w-3" />
+                            Take Assessment
+                          </Button>
+                        </Link>
+                      ) : (
                         <Button 
                           size="sm"
-                          className="bg-secondary text-white hover:bg-green-600 transition-colors text-xs py-1"
-                          disabled={sectionProgress < 100}
+                          className="bg-gray-400 text-white cursor-not-allowed text-xs py-1"
+                          disabled={true}
                         >
                           <UserCheck className="mr-1 h-3 w-3" />
                           Take Assessment
                         </Button>
-                      </Link>
+                      )}
                     </div>
                   </div>
                 </AccordionContent>

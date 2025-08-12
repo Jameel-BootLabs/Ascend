@@ -11,9 +11,9 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
-import { CheckCircle, XCircle, Clock, Award, AlertCircle } from "lucide-react";
+import { CheckCircle, XCircle, Clock, Award, AlertCircle, AlertTriangle } from "lucide-react";
 import { Link } from "wouter";
-import type { TrainingSection, AssessmentQuestion, AssessmentResult } from "@shared/schema";
+import type { TrainingSection, AssessmentQuestion, AssessmentResult, TrainingModule } from "@shared/schema";
 
 export default function SectionAssessment() {
   const [match, params] = useRoute("/assessment/section/:sectionId");
@@ -53,6 +53,18 @@ export default function SectionAssessment() {
 
   const section = sections.find(s => s.id === sectionId);
 
+  // Fetch modules for this section
+  const { data: modules = [], isLoading: modulesLoading } = useQuery({
+    queryKey: ["/api/modules"],
+    retry: false,
+  });
+
+  // Fetch progress data
+  const { data: progress = [] } = useQuery({
+    queryKey: ["/api/progress"],
+    retry: false,
+  });
+
   // Fetch assessment questions for this section
   const { data: questions = [], isLoading: questionsLoading } = useQuery({
     queryKey: ["/api/sections", sectionId, "assessment", "questions"],
@@ -67,6 +79,28 @@ export default function SectionAssessment() {
   });
 
   const existingResult = results.find(r => r.sectionId === sectionId);
+
+  // Check if all modules in this section are completed
+  const sectionModules = modules.filter(module => module.sectionId === sectionId);
+  const completedModules = sectionModules.filter(module => {
+    const moduleProgress = progress.find(p => p.moduleId === module.id);
+    return moduleProgress?.status === 'completed';
+  });
+  const allModulesCompleted = sectionModules.length > 0 && completedModules.length === sectionModules.length;
+
+  // Redirect if modules are not completed (unless there's an existing result)
+  useEffect(() => {
+    if (!isLoading && !modulesLoading && !questionsLoading && !existingResult && !allModulesCompleted) {
+      toast({
+        title: "Assessment Locked",
+        description: "You must complete all modules in this section before taking the assessment.",
+        variant: "destructive",
+      });
+      setTimeout(() => {
+        window.location.href = "/";
+      }, 2000);
+    }
+  }, [isLoading, modulesLoading, questionsLoading, existingResult, allModulesCompleted, toast]);
 
   // Timer effect
   useEffect(() => {
@@ -113,7 +147,7 @@ export default function SectionAssessment() {
     },
   });
 
-  if (isLoading || questionsLoading) {
+  if (isLoading || questionsLoading || modulesLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -123,6 +157,45 @@ export default function SectionAssessment() {
 
   if (!isAuthenticated || !match || !section) {
     return null;
+  }
+
+  // Show error message if modules are not completed (unless there's an existing result)
+  if (!existingResult && !allModulesCompleted) {
+    return (
+      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <Card className="shadow-material">
+          <CardHeader>
+            <CardTitle className="text-center text-2xl font-bold text-gray-900 flex items-center justify-center">
+              <AlertTriangle className="text-orange-500 mr-2" />
+              Assessment Locked
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="text-center">
+            <div className="mb-6">
+              <div className="text-lg text-gray-600 mb-4">
+                You must complete all modules in this section before taking the assessment.
+              </div>
+              <div className="bg-orange-50 p-4 rounded-lg border border-orange-200">
+                <div className="text-sm text-orange-800">
+                  <strong>Required:</strong> Complete {sectionModules.length - completedModules.length} more module(s)
+                </div>
+                <div className="text-xs text-orange-600 mt-1">
+                  Progress: {completedModules.length} / {sectionModules.length} modules completed
+                </div>
+              </div>
+            </div>
+            
+            <div className="space-y-3">
+              <Link href="/">
+                <Button className="w-full bg-primary text-white hover:bg-primary-dark">
+                  Return to Dashboard
+                </Button>
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+      </main>
+    );
   }
 
   const formatTime = (seconds: number) => {
@@ -174,7 +247,7 @@ export default function SectionAssessment() {
 
   const currentQuestion = questions[currentQuestionIndex];
   const allQuestionsAnswered = questions.every(q => answers[q.id]);
-  const progress = ((currentQuestionIndex + 1) / questions.length) * 100;
+  const questionProgress = ((currentQuestionIndex + 1) / questions.length) * 100;
 
   // Show existing results if already completed and not retaking
   if (existingResult && !showResults && !isRetaking) {
@@ -420,7 +493,7 @@ export default function SectionAssessment() {
           </div>
         </div>
         
-        <Progress value={progress} className="h-2" />
+        <Progress value={questionProgress} className="h-2" />
       </div>
 
       {currentQuestion && (
