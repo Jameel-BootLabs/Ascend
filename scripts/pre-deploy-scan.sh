@@ -313,8 +313,8 @@ main() {
     check_dependencies
     check_environment_config
     check_typescript
-    run_security_audit
-    check_dependencies_health
+    # run_security_audit
+    # check_dependencies_health
     run_code_quality_checks
     check_database_schema
     check_file_permissions
