@@ -32,6 +32,7 @@ COPY --from=builder /app/package*.json ./
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/drizzle.config.ts ./
 COPY --from=builder /app/shared ./shared
+COPY --from=builder /app/uploads ./uploads
 
 # Create uploads directory
 RUN mkdir -p ./uploads
